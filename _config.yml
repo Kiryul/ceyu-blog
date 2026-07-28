@@ -1,0 +1,92 @@
+# Hexo 站点配置
+# 文档: https://hexo.io/zh-cn/docs/configuration.html
+
+# 站点信息
+title: 策屿
+subtitle: '记录技术与生活的二次元角落'
+description: '个人博客，分享资讯热点、技术博文与个人随想。'
+keywords: 博客,技术,二次元,随想
+author: kiryul
+language: zh-CN
+timezone: 'Asia/Shanghai'
+
+# 网址
+url: http://localhost:4000
+permalink: :year/:month/:day/:title/
+permalink_defaults:
+pretty_urls:
+  trailing_index: true
+  trailing_html: true
+
+# 目录
+source_dir: source
+public_dir: public
+tag_dir: tags
+archive_dir: archives
+category_dir: categories
+code_dir: downloads/code
+i18n_dir: :lang
+skip_render:
+
+# 写作
+new_post_name: :title.md
+default_layout: post
+titlecase: false
+external_link:
+  enable: true
+  field: site
+  exclude: ''
+filename_case: 0
+render_drafts: false
+post_asset_folder: false
+relative_link: false
+future: true
+syntax_highlighter: highlight.js
+highlight:
+  line_number: false
+  auto_detect: false
+  tab_replace: ''
+  wrap: true
+  hljs: false
+
+# 首页（近期文章）分页
+index_generator:
+  path: ''
+  per_page: 10
+  order_by: -date
+
+# 分类 & 标签
+default_category: uncategorized
+category_map:
+tag_map:
+
+# 分类页分页（资讯热点 / 技术博文，每页 10 篇）
+category_generator:
+  per_page: 10
+  order_by: -date
+
+# 标签页分页
+tag_generator:
+  per_page: 10
+  order_by: -date
+
+# 归档页：不分页，展示全部文章
+archive_generator:
+  enabled: true
+  per_page: 0
+  yearly: false
+  monthly: false
+  daily: false
+  order_by: -date
+
+# 日期 / 时间格式
+date_format: YYYY-MM-DD
+time_format: HH:mm:ss
+updated_option: 'mtime'
+
+# 分页
+per_page: 10
+pagination_dir: page
+
+# 主题
+theme: anime

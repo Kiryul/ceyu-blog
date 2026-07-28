@@ -1,0 +1,47 @@
+<%
+  // 归档页：全部文章按年份归类；右侧展示分类/标签统计
+  const posts = page.posts.sort('date', -1);
+  const byYear = {};
+  posts.each(function (post) {
+    const y = post.date.year();
+    (byYear[y] = byYear[y] || []).push(post);
+  });
+  const years = Object.keys(byYear).sort((a, b) => b - a);
+%>
+<div class="container archive-layout">
+  <section class="archive-main">
+    <h1 class="page-title">归档 <small>共 <%= posts.length %> 篇</small></h1>
+    <% years.forEach(function (year) { %>
+      <div class="archive-year-block">
+        <h2 class="archive-year"><%= year %></h2>
+        <ul class="archive-list">
+          <% byYear[year].forEach(function (post) { %>
+            <li class="archive-item">
+              <time class="archive-date"><%= post.date.format('MM-DD') %></time>
+              <a class="archive-link" href="<%- url_for(post.path) %>"><%= post.title %></a>
+            </li>
+          <% }) %>
+        </ul>
+      </div>
+    <% }) %>
+  </section>
+
+  <aside class="archive-side">
+    <div class="side-card">
+      <h3 class="side-title">🗂 分类</h3>
+      <ul class="side-list">
+        <% site.categories.sort('name').each(function (cat) { %>
+          <li><a href="<%- url_for(cat.path) %>"><%= cat.name %></a><span class="side-count"><%= cat.posts.length %></span></li>
+        <% }) %>
+      </ul>
+    </div>
+    <div class="side-card">
+      <h3 class="side-title">🏷 标签</h3>
+      <div class="side-tags">
+        <% site.tags.sort('name').each(function (tag) { %>
+          <a class="tag-chip" href="<%- url_for(tag.path) %>">#<%= tag.name %> <em><%= tag.posts.length %></em></a>
+        <% }) %>
+      </div>
+    </div>
+  </aside>
+</div>

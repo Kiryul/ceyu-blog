@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="<%= page.description || config.description %>">
+  <title><%= page.title ? page.title + ' | ' + config.title : config.title %></title>
+  <link rel="stylesheet" href="<%- url_for('/css/style.css') %>">
+  <script>
+    // 首屏读取主题偏好，避免闪烁
+    (function () {
+      var t = localStorage.getItem('theme');
+      if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    })();
+  </script>
+</head>
+<body class="<%= is_home() && (!page.current || page.current === 1) ? 'is-home' : '' %>">
+  <%- partial('_partial/header') %>
+
+  <main class="site-main">
+    <%- body %>
+  </main>
+
+  <%- partial('_partial/footer') %>
+  <%- partial('_partial/search-modal') %>
+
+  <!-- 后续拓展挂载点：Live2D 看板娘 / 音乐播放器 -->
+  <div id="live2d-mount"></div>
+  <div id="player-mount"></div>
+
+  <script>
+    window.ANIME_THEME = {
+      root: '<%- config.root %>',
+      quoteInterval: <%= theme.quote_interval || 8000 %>,
+      thoughtsPerPage: <%= theme.thoughts_per_page || 10 %>,
+      walineServer: '<%= theme.waline.serverURL %>'
+    };
+  </script>
+  <script src="<%- url_for('/js/main.js') %>"></script>
+  <script src="<%- url_for('/js/search.js') %>"></script>
+</body>
+</html>

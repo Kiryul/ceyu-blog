@@ -1,0 +1,27 @@
+# anime 主题配置
+
+# 顶部导航菜单
+menu:
+  首页: /
+  资讯热点: /categories/资讯热点/
+  技术博文: /categories/技术博文/
+  个人随想: /thoughts/
+  归档: /archives/
+  关于我: /about/
+
+# 随想瀑布流：前端分页每页条数
+thoughts_per_page: 10
+
+# Waline 评论 + 浏览量服务
+# 部署 Waline 后填写 serverURL（如 https://your-waline.vercel.app）
+# 留空时：评论区显示占位提示，浏览量隐藏
+waline:
+  serverURL: ''
+
+# 首页语录切换间隔（毫秒）
+quote_interval: 8000
+
+# 页脚
+footer:
+  since: 2026
+  text: '用 ❤ 与 Hexo 构建'

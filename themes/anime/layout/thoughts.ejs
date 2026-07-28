@@ -1,0 +1,28 @@
+<%
+  // 个人随想：数据来自 source/_data/thoughts.yml，按时间倒序，前端瀑布流 + 分页
+  const thoughts = (site.data.thoughts || []).slice().sort(function (a, b) {
+    return new Date(b.date) - new Date(a.date);
+  });
+%>
+<section class="container thoughts-page">
+  <h1 class="page-title">个人随想 <small>共 <%= thoughts.length %> 条</small></h1>
+
+  <div class="thoughts-waterfall" id="thoughts-waterfall">
+    <% thoughts.forEach(function (t, i) { %>
+      <div class="thought-card" data-index="<%= i %>">
+        <p class="thought-content"><%= t.content %></p>
+        <% if (t.images && t.images.length) { %>
+          <div class="thought-images">
+            <% t.images.forEach(function (img) { %>
+              <img src="<%- url_for(img) %>" alt="随想配图" loading="lazy">
+            <% }) %>
+          </div>
+        <% } %>
+        <time class="thought-date">🕐 <%= new Date(t.date).toLocaleString('zh-CN', { hour12: false }) %></time>
+      </div>
+    <% }) %>
+  </div>
+
+  <nav class="thoughts-pager" id="thoughts-pager"></nav>
+</section>
+<script src="<%- url_for('/js/thoughts.js') %>"></script>

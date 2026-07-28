@@ -1,0 +1,9 @@
+<section class="container post-list">
+  <h2 class="section-title"><span>🏷</span> 标签：#<%= page.tag %></h2>
+  <div class="cards">
+    <% page.posts.each(function (post) { %>
+      <%- partial('_partial/post-card', { post: post }) %>
+    <% }) %>
+  </div>
+  <%- partial('_partial/paginator') %>
+</section>

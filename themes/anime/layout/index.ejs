@@ -1,0 +1,30 @@
+<% if (!page.prev) { %>
+<%
+  // 首屏 hero：仅第一页展示（语录 + 壁纸 + 下滑箭头）
+  const quotes = site.data.quotes || [];
+  const wallpapers = site.data.wallpapers || [];
+%>
+<section class="hero" id="hero">
+  <div class="hero-bg" id="hero-bg"></div>
+  <div class="hero-veil"></div>
+  <div class="hero-content">
+    <h1 class="hero-title"><%= config.title %></h1>
+    <p class="hero-subtitle"><%= config.subtitle %></p>
+    <p class="hero-quote" id="hero-quote">&nbsp;</p>
+  </div>
+  <button class="scroll-down" id="scroll-down" type="button" aria-label="进入近期文章">
+    <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+  </button>
+  <script type="application/json" id="hero-data"><%- JSON.stringify({ quotes: quotes, wallpapers: wallpapers }) %></script>
+</section>
+<% } %>
+
+<section class="container post-list" id="recent">
+  <h2 class="section-title"><span>🌸</span> 近期文章</h2>
+  <div class="cards">
+    <% page.posts.each(function (post) { %>
+      <%- partial('_partial/post-card', { post: post }) %>
+    <% }) %>
+  </div>
+  <%- partial('_partial/paginator') %>
+</section>

@@ -1,0 +1,45 @@
+<article class="container post-detail">
+  <header class="post-header">
+    <% if (page.categories && page.categories.length) { %>
+      <div class="post-cat">
+        <% page.categories.each(function (cat) { %>
+          <a class="cat-chip" href="<%- url_for(cat.path) %>"><%= cat.name %></a>
+        <% }) %>
+      </div>
+    <% } %>
+    <h1 class="post-title"><%= page.title %></h1>
+    <div class="post-meta">
+      <span>✍️ <%= page.author || config.author %></span>
+      <time datetime="<%= page.date.toISOString() %>">📅 <%= page.date.format('YYYY-MM-DD HH:mm') %></time>
+      <span class="post-views" id="post-views" hidden>👀 <span class="waline-pageview-count" data-path="<%- url_for(page.path) %>">0</span> 次浏览</span>
+    </div>
+    <% if (page.tags && page.tags.length) { %>
+      <div class="post-tags">
+        <% page.tags.each(function (tag) { %>
+          <a class="tag-chip" href="<%- url_for(tag.path) %>">#<%= tag.name %></a>
+        <% }) %>
+      </div>
+    <% } %>
+  </header>
+
+  <div class="post-content markdown-body">
+    <%- page.content %>
+  </div>
+
+  <nav class="post-nav">
+    <% if (page.prev) { %><a class="post-nav-item" href="<%- url_for(page.prev.path) %>">‹ <%= page.prev.title %></a><% } else { %><span></span><% } %>
+    <% if (page.next) { %><a class="post-nav-item" href="<%- url_for(page.next.path) %>"><%= page.next.title %> ›</a><% } %>
+  </nav>
+
+  <!-- 评论区（Waline：昵称+邮箱必填、审核后展示、楼中楼） -->
+  <section class="comments" id="comments">
+    <h2 class="section-title"><span>💬</span> 评论</h2>
+    <% if (theme.waline && theme.waline.serverURL) { %>
+      <div id="waline"></div>
+    <% } else { %>
+      <div class="comments-placeholder">
+        评论服务尚未接入：部署 Waline 后，将地址填入 <code>themes/anime/_config.yml → waline.serverURL</code> 即可启用评论与浏览量。
+      </div>
+    <% } %>
+  </section>
+</article>

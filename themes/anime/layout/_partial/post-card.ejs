@@ -1,0 +1,20 @@
+<article class="post-card">
+  <a class="post-card-link" href="<%- url_for(post.path) %>">
+    <% if (post.cover) { %>
+      <div class="post-card-cover"><img src="<%- url_for(post.cover) %>" alt="<%= post.title %>" loading="lazy"></div>
+    <% } %>
+    <div class="post-card-body">
+      <h3 class="post-card-title"><%= post.title %></h3>
+      <p class="post-card-excerpt"><%- truncate(strip_html(post.excerpt || post.content || ''), { length: 90, omission: '…' }) %></p>
+      <div class="post-card-meta">
+        <time datetime="<%= post.date.toISOString() %>">📅 <%= post.date.format('YYYY-MM-DD') %></time>
+        <% if (post.categories && post.categories.length) { %>
+          <span class="meta-cat">🗂 <%= post.categories.map(c => c.name).join(' / ') %></span>
+        <% } %>
+        <% if (post.tags && post.tags.length) { %>
+          <span class="meta-tags"><% post.tags.each(function (tag) { %><span class="tag-chip">#<%= tag.name %></span><% }) %></span>
+        <% } %>
+      </div>
+    </div>
+  </a>
+</article>

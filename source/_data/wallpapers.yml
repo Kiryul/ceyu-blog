@@ -1,0 +1,39 @@
+# 壁纸素材库（自行维护）
+# type: image | video（.mp4 等视频作为动态壁纸）
+# period: morning(5-10) | day(10-17) | dusk(17-20) | night(20-5)，按时间段随机取用
+# src 为空时前端回退到 fallback 的 CSS 渐变壁纸
+# 同一时段可登记多张，展示时随机取一张
+
+# —— 静态壁纸（PNG）——
+- period: morning
+  type: image
+  src: /img/wallpapers/wallpaper-18272810409643392.png
+  fallback: ''
+- period: day
+  type: image
+  src: /img/wallpapers/wallpaper-18903420362083712.png
+  fallback: ''
+
+# —— 动态壁纸（MP4）——
+- period: day
+  type: video
+  src: /img/wallpapers/wallpaper-18272718509231488.mp4
+  fallback: ''
+- period: dusk
+  type: video
+  src: /img/wallpapers/wallpaper-18946196669255040.mp4
+  fallback: ''
+- period: night
+  type: video
+  src: /img/wallpapers/wallpaper-18946196669779328.mp4
+  fallback: ''
+
+# —— 渐变兜底（可保留，作为对应时段的备选之一）——
+- period: morning
+  type: image
+  src: ''
+  fallback: 'linear-gradient(160deg, #ffd6e8 0%, #c9e4ff 55%, #fff3c9 100%)'
+- period: night
+  type: image
+  src: ''
+  fallback: 'linear-gradient(160deg, #1a1a40 0%, #38246b 50%, #6b2d5c 100%)'
