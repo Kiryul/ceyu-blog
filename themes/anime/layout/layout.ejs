@@ -6,16 +6,29 @@
   <meta name="description" content="<%= page.description || config.description %>">
   <title><%= page.title ? page.title + ' | ' + config.title : config.title %></title>
   <link rel="stylesheet" href="<%- url_for('/css/style.css') %>">
+  <% var bg = theme.background || {}; %>
+  <% if (bg.light || bg.dark) { %>
+  <style>
+    /* 全站背景壁纸（由主题配置 background 生成） */
+    <% if (bg.light) { %>html[data-theme='light'] #site-bg { background-image: url('<%- url_for(bg.light) %>'); }<% } %>
+    <% if (bg.dark) { %>html[data-theme='dark'] #site-bg { background-image: url('<%- url_for(bg.dark) %>'); }<% } %>
+    #site-bg::after { opacity: <%= typeof bg.veil === 'number' ? bg.veil : 0.88 %>; }
+  </style>
+  <% } %>
   <script>
-    // 首屏读取主题偏好，避免闪烁
+    // 首屏读取主题偏好，避免闪烁；并标记跨文档 View Transitions 支持情况
     (function () {
       var t = localStorage.getItem('theme');
       if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       document.documentElement.setAttribute('data-theme', t);
+      if ('PageRevealEvent' in window) document.documentElement.classList.add('vt');
+      // 壁纸在本会话已加载过（浏览器已缓存）时，首帧直接显示，消除跳转时的壁纸空窗闪白
+      try { if (sessionStorage.getItem('anime-bg-ready')) document.documentElement.classList.add('bg-cached'); } catch (e) {}
     })();
   </script>
 </head>
 <body class="<%= is_home() && (!page.current || page.current === 1) ? 'is-home' : '' %>">
+  <div id="site-bg" aria-hidden="true"></div>
   <%- partial('_partial/header') %>
 
   <main class="site-main">
@@ -34,7 +47,9 @@
       root: '<%- config.root %>',
       quoteInterval: <%= theme.quote_interval || 8000 %>,
       thoughtsPerPage: <%= theme.thoughts_per_page || 10 %>,
-      walineServer: '<%= theme.waline.serverURL %>'
+      walineServer: '<%= theme.waline.serverURL %>',
+      bgLight: '<%- (theme.background && theme.background.light) ? url_for(theme.background.light) : '' %>',
+      bgDark: '<%- (theme.background && theme.background.dark) ? url_for(theme.background.dark) : '' %>'
     };
   </script>
   <script src="<%- url_for('/js/main.js') %>"></script>

@@ -1,17 +1,101 @@
-/* anime 主题主脚本：主题切换 / 首页语录 / 壁纸 / 鼠标特效 / 下滑箭头 / Waline */
+/* anime 主题主脚本：主题切换 / 首页语录 / 壁纸 / 鼠标特效 / 下滑箭头 / 页面过渡 / Waline */
 (function () {
   'use strict';
 
   var CFG = window.ANIME_THEME || {};
+  var REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // 支持跨文档 View Transitions 时，跳转渐变由浏览器原生接管（无空白帧）
+  var HAS_VT = 'PageRevealEvent' in window;
 
-  /* ---------- 亮暗主题切换（localStorage 持久化） ---------- */
+  /* ---------- 全站背景壁纸：图片加载完成后再淡入，避免解码突变闪烁 ---------- */
+  var siteBg = document.getElementById('site-bg');
+  if (siteBg) {
+    var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    var bgSrc = isDark ? CFG.bgDark : CFG.bgLight;
+    if (bgSrc) {
+      var bgImg = new Image();
+      var bgReady = function () {
+        siteBg.classList.add('bg-ready');
+        // 标记本会话壁纸已缓存：后续页面首帧直接显示壁纸，消除跨页空窗闪白（见 layout.ejs 首屏脚本）
+        try { sessionStorage.setItem('anime-bg-ready', '1'); } catch (e) {}
+      };
+      bgImg.onload = bgReady;
+      bgImg.onerror = bgReady; // 加载失败也显示层（退回遮罩底色）
+      bgImg.src = bgSrc;
+      if (bgImg.complete) bgReady(); // 命中缓存时立即显示
+    } else {
+      siteBg.classList.add('bg-ready');
+    }
+    // 切换主题后预加载另一张壁纸，保证下次切换无延迟
+    var otherSrc = isDark ? CFG.bgLight : CFG.bgDark;
+    if (otherSrc) { new Image().src = otherSrc; }
+  }
+
+  /* ---------- 亮暗主题切换（localStorage 持久化 + View Transitions 交叉淡入） ---------- */
   var themeBtn = document.getElementById('theme-btn');
   if (themeBtn) {
     themeBtn.addEventListener('click', function () {
       var cur = document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
       var next = cur === 'dark' ? 'light' : 'dark';
-      document.documentElement.setAttribute('data-theme', next);
-      localStorage.setItem('theme', next);
+      var apply = function () {
+        document.documentElement.setAttribute('data-theme', next);
+        localStorage.setItem('theme', next);
+      };
+      if (document.startViewTransition && !REDUCED) {
+        document.startViewTransition(apply);
+      } else {
+        apply();
+      }
+    });
+  }
+
+  /* ---------- 站内跳转渐隐过渡（仅无跨文档 VT 的浏览器需要手动过渡） ---------- */
+  if (!REDUCED && !HAS_VT) {
+    document.addEventListener('click', function (e) {
+      var a = e.target.closest && e.target.closest('a[href]');
+      if (!a) return;
+      // 跳过：新窗口 / 下载 / 外链 / 修饰键 / 默认行为已阻止
+      if (e.defaultPrevented || e.button !== 0) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (a.target === '_blank' || a.hasAttribute('download')) return;
+      if (a.origin !== location.origin) return;
+      // 跳过：同页锚点
+      if (a.pathname === location.pathname && a.hash) return;
+      e.preventDefault();
+      var href = a.href;
+      document.body.classList.add('page-leaving');
+      setTimeout(function () { location.href = href; }, 200);
+    });
+    // 从 bfcache 返回时恢复可见
+    window.addEventListener('pageshow', function () {
+      document.body.classList.remove('page-leaving');
+    });
+  }
+
+  /* ---------- 列表滚动渐显（IntersectionObserver，同屏卡片错峰入场） ---------- */
+  if (!REDUCED && 'IntersectionObserver' in window) {
+    var items = document.querySelectorAll('.post-card, .thought-card, .archive-item, .side-card');
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        var el = entry.target;
+        el.classList.add('revealed');
+        io.unobserve(el);
+        // 过渡结束后清理类，避免与 hover 的 transform 过渡互相干扰
+        setTimeout(function () {
+          el.classList.remove('reveal', 'revealed');
+          el.style.transitionDelay = '';
+        }, 700 + 400);
+      });
+    }, { rootMargin: '0px 0px -8% 0px' });
+    var stagger = 0;
+    items.forEach(function (el) {
+      // 首屏内的卡片错峰延迟，其余进入视口时立即渐显
+      if (el.getBoundingClientRect().top < window.innerHeight) {
+        el.style.transitionDelay = Math.min(stagger++ * 70, 420) + 'ms';
+      }
+      el.classList.add('reveal');
+      io.observe(el);
     });
   }
 

@@ -12,11 +12,19 @@ menu:
 # 随想瀑布流：前端分页每页条数
 thoughts_per_page: 10
 
+# 全站背景壁纸（非首页 hero 区域的页面背景）
+# light/dark 分别对应亮/暗主题，留空则为纯色背景
+# veil 为遮罩浓度 0-1：越大壁纸越淡（保证正文可读）
+background:
+  light: /img/wallpapers/wallpaper-19291403720086400.png
+  dark: /img/wallpapers/wallpaper-19285794097025920.png
+  veil: 0.68
+
 # Waline 评论 + 浏览量服务
 # 部署 Waline 后填写 serverURL（如 https://your-waline.vercel.app）
 # 留空时：评论区显示占位提示，浏览量隐藏
 waline:
-  serverURL: ''
+  serverURL: https://waline.kiryul.xyz/
 
 # 首页语录切换间隔（毫秒）
 quote_interval: 8000

@@ -15,6 +15,7 @@ html[data-theme='light'] {
   --header-bg: rgba(255, 255, 255, 0.82);
   --card-bg: #ffffff;
   --code-bg: #f6f0f6;
+  --panel-bg: rgba(255, 255, 255, 0.68);
 }
 
 html[data-theme='dark'] {
@@ -30,19 +31,22 @@ html[data-theme='dark'] {
   --header-bg: rgba(23, 22, 42, 0.82);
   --card-bg: #201e3c;
   --code-bg: #2a2748;
+  --panel-bg: rgba(26, 24, 48, 0.68);
 }
 
 /* ---------- 基础 ---------- */
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { scroll-behavior: smooth; }
+/* 底色由 html 承担（防跨页白闪）；body 必须透明，
+   否则 body 背景会盖住 z-index:-1 的 #site-bg 壁纸层 */
+html { scroll-behavior: smooth; background: var(--bg); transition: background 0.35s; }
 
 body {
   font-family: 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', sans-serif;
-  background: var(--bg);
+  background: transparent;
   color: var(--text);
   line-height: 1.75;
-  transition: background 0.35s, color 0.35s;
+  transition: color 0.35s;
 }
 
 a { color: inherit; text-decoration: none; }
@@ -52,6 +56,47 @@ body.modal-open { overflow: hidden; }
 .container { max-width: 980px; margin: 0 auto; padding: 0 20px; }
 .site-main { min-height: 70vh; padding-bottom: 56px; }
 body:not(.is-home) .site-main { padding-top: 96px; }
+
+/* 文章正文展示页磨砂衬底：壁纸上叠半透明毛玻璃面板，兼顾氛围与可读性 */
+.site-main > .post-detail {
+  background: var(--panel-bg);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 30px 32px 40px;
+  margin: 28px auto;
+}
+
+/* ---------- 全站背景壁纸层 ---------- */
+/* 固定于视口最底层；具体图片由 layout.ejs 按主题配置 background 注入 */
+#site-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+  /* 壁纸图片解码完成前隐藏，避免纯色→壁纸的突变闪烁；
+     JS 加载完成后立即淡入（.bg-ready）；若 JS 未执行/缓存不一致，
+     0.6s 后由 CSS 动画自动淡入兑底，保证壁纸功能永不失效 */
+  opacity: 0;
+  transition: opacity 0.5s ease;
+  animation: bg-fade 0.5s ease 0.6s forwards;
+}
+#site-bg.bg-ready { opacity: 1; animation: none; }
+/* 本会话内壁纸已缓存（首屏脚本标记）：首帧直接显示，跳过淡入，消除跨页壁纸空窗闪白 */
+html.bg-cached #site-bg { opacity: 1; animation: none; transition: none; }
+@keyframes bg-fade { to { opacity: 1; } }
+/* 遮罩：用主题底色压淡壁纸，浓度由配置 veil 控制，保证正文可读 */
+#site-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--bg);
+  transition: background 0.35s;
+}
+/* 首页 hero 自带全屏壁纸盖在上层，滚动过 hero 后全站背景自然露出 */
 
 /* ---------- 顶部导航 ---------- */
 .site-header {
@@ -360,6 +405,7 @@ a.tag-chip:hover { background: var(--primary); color: #fff; }
 }
 .archive-item:hover { border-left-color: var(--primary); }
 .archive-date { color: var(--text-soft); font-size: 13.5px; flex-shrink: 0; }
+.archive-link { font-weight: 700; }
 .archive-link:hover { color: var(--primary); }
 
 .archive-side { width: 260px; flex-shrink: 0; position: sticky; top: 96px; }
@@ -488,9 +534,56 @@ a.tag-chip:hover { background: var(--primary); color: #fff; }
   border-top: 1px solid var(--border);
 }
 
+/* ---------- 视觉动效：页面过渡 / 滚动渐显 / 入场 ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  /* 跨文档 View Transitions：站内跳转由浏览器新旧页面快照交叉淡化，无空白帧（Chrome/Edge 126+） */
+  @view-transition { navigation: auto; }
+
+  /* 以下手动渐变仅用于不支持跨文档 VT 的浏览器（html.vt 由首屏脚本标记） */
+  /* 进入页面：内容区渐显（背景壁纸层不参与，保持稳定） */
+  html:not(.vt) .site-main,
+  html:not(.vt) .site-footer { animation: page-in 0.7s ease backwards; }
+
+  /* 站内跳转离开：仅淡出内容，顶栏与背景壁纸保持可见（JS 添加类） */
+  html:not(.vt) body.page-leaving .site-main,
+  html:not(.vt) body.page-leaving .site-footer { opacity: 0; transition: opacity 0.22s ease; }
+
+  /* hero 文案分层入场 */
+  .hero-title { animation: rise-in 0.7s ease 0.05s backwards; }
+  .hero-subtitle { animation: rise-in 0.7s ease 0.2s backwards; }
+  .hero-quote { animation: rise-in 0.7s ease 0.35s backwards; }
+  .scroll-down { animation: bounce 1.8s infinite, fade-in 0.6s ease 0.6s backwards; }
+
+  /* 滚动渐显（JS 添加 reveal/revealed 类，动画结束后移除以恢复 hover 过渡） */
+  .reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.55s ease, transform 0.55s cubic-bezier(0.22, 0.61, 0.36, 1);
+  }
+  .reveal.revealed { opacity: 1; transform: none; }
+}
+
+@keyframes page-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(26px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* 主题切换与跨页跳转：View Transitions 交叉淡入时长（旧页快淡出，新页缓慢渐出） */
+::view-transition-old(root) { animation-duration: 0.8s; }
+::view-transition-new(root) { animation-duration: 1.0s; animation-timing-function: ease-out; }
+
 /* ---------- 响应式 ---------- */
 @media (max-width: 820px) {
   .hero-title { font-size: 38px; letter-spacing: 3px; }
+  .site-main > .post-detail { padding: 22px 16px 30px; margin: 16px 10px; border-radius: 16px; }
   .archive-layout { flex-direction: column; }
   .archive-side { width: 100%; position: static; }
   .thoughts-waterfall { column-count: 1; }
