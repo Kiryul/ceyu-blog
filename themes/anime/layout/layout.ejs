@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="<%= page.description || config.description %>">
   <title><%= page.title ? page.title + ' | ' + config.title : config.title %></title>
+  <link rel="icon" type="image/svg+xml" href="<%- url_for('/img/favicon.svg') %>">
+  <link rel="apple-touch-icon" href="<%- url_for('/img/favicon.svg') %>">
   <link rel="stylesheet" href="<%- url_for('/css/style.css') %>">
   <% var bg = theme.background || {}; %>
   <% if (bg.light || bg.dark) { %>
@@ -16,12 +18,12 @@
   </style>
   <% } %>
   <script>
-    // 首屏读取主题偏好，避免闪烁；并标记跨文档 View Transitions 支持情况
+    // 首屏读取主题偏好，避免闪烁；并标记 View Transitions 支持情况（pjax 换页用同文档 VT）
     (function () {
       var t = localStorage.getItem('theme');
       if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
       document.documentElement.setAttribute('data-theme', t);
-      if ('PageRevealEvent' in window) document.documentElement.classList.add('vt');
+      if (document.startViewTransition) document.documentElement.classList.add('vt');
       // 壁纸在本会话已加载过（浏览器已缓存）时，首帧直接显示，消除跳转时的壁纸空窗闪白
       try { if (sessionStorage.getItem('anime-bg-ready')) document.documentElement.classList.add('bg-cached'); } catch (e) {}
     })();

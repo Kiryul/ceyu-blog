@@ -536,17 +536,13 @@ a.tag-chip:hover { background: var(--primary); color: #fff; }
 
 /* ---------- 视觉动效：页面过渡 / 滚动渐显 / 入场 ---------- */
 @media (prefers-reduced-motion: no-preference) {
-  /* 跨文档 View Transitions：站内跳转由浏览器新旧页面快照交叉淡化，无空白帧（Chrome/Edge 126+） */
+  /* 兜底：pjax 降级为整页跳转时，由跨文档 View Transitions 接管（Chrome/Edge 126+） */
   @view-transition { navigation: auto; }
 
-  /* 以下手动渐变仅用于不支持跨文档 VT 的浏览器（html.vt 由首屏脚本标记） */
-  /* 进入页面：内容区渐显（背景壁纸层不参与，保持稳定） */
+  /* 不支持 View Transitions 的浏览器（html.vt 由首屏脚本标记）：
+     pjax 替换 <main> 后新内容重新触发 page-in，以纯渐显代替 VT 交叉渐变 */
   html:not(.vt) .site-main,
   html:not(.vt) .site-footer { animation: page-in 0.7s ease backwards; }
-
-  /* 站内跳转离开：仅淡出内容，顶栏与背景壁纸保持可见（JS 添加类） */
-  html:not(.vt) body.page-leaving .site-main,
-  html:not(.vt) body.page-leaving .site-footer { opacity: 0; transition: opacity 0.22s ease; }
 
   /* hero 文案分层入场 */
   .hero-title { animation: rise-in 0.7s ease 0.05s backwards; }
@@ -576,9 +572,18 @@ a.tag-chip:hover { background: var(--primary); color: #fff; }
   to { opacity: 1; }
 }
 
-/* 主题切换与跨页跳转：View Transitions 交叉淡入时长（旧页快淡出，新页缓慢渐出） */
-::view-transition-old(root) { animation-duration: 0.8s; }
-::view-transition-new(root) { animation-duration: 1.0s; animation-timing-function: ease-out; }
+/* 主题切换与 pjax 换页（同文档 View Transition）：新快照在旧快照之上渐显。
+   旧页保持完全不透明垫底（禁用默认淡出与 plus-lighter 混合），
+   过渡全程画面始终有完整一层，杜绝新旧透明度之和 < 1 时露出白底 */
+::view-transition-image-pair(root) { isolation: auto; }
+::view-transition-old(root),
+::view-transition-new(root) { mix-blend-mode: normal; }
+::view-transition-old(root) { animation: none; opacity: 1; }
+::view-transition-new(root) { animation: vt-fade-in 0.6s ease-out; }
+@keyframes vt-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
 /* ---------- 响应式 ---------- */
 @media (max-width: 820px) {

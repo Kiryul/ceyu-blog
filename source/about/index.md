@@ -5,15 +5,15 @@ layout: page
 comments: false
 ---
 
-## 你好，我是策屿 👋
+## 你好，我是kiryul 👋
 
 一名热爱技术与二次元的开发者。
 
-- 💻 主攻方向：前端 / 移动端开发
+- 💻 主攻方向：Java / 后端开发，vibe coding学习中
 - 📚 喜欢写技术博文，也喜欢记录生活随想
-- 🎮 兴趣：动漫、游戏、摄影、爬山
-- 📮 联系我：`example@example.com`
+- 🎮 兴趣：动漫、游戏、cosplay、羽毛球
+- 📮 联系我：`zccnjupt@foxmail.com`
 
-> 这个小站基于 Hexo 搭建，主题「anime」为自研，源码见仓库。
+> 小站基于 Hexo 搭建，代码由AI产出，源码见仓库<https://github.com/Kiryul/ceyu-blog>。
 
 欢迎在文章下方留言交流！
