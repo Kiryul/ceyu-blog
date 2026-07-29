@@ -1,0 +1,9 @@
+{
+  "framework": "hexo",
+  "buildCommand": "hexo generate",
+  "outputDirectory": "public",
+  "installCommand": "npm install",
+  "github": {
+    "silent": true
+  }
+}
