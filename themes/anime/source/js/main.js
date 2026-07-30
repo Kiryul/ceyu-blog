@@ -230,29 +230,98 @@
     });
   }
 
-  /* ---------- 个人随想：瀑布流前端分页（每页 N 条，换页后重建） ---------- */
+  /* ---------- 轻提示（随想提交反馈等） ---------- */
+  var toastTimer = null;
+  function showToast(msg) {
+    var el = document.getElementById('site-toast');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'site-toast';
+      document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2600);
+  }
+
+  /* ---------- 个人随想：单列时间流 + 前端分页 + Waline REST 互动 ----------
+     博主随想来自构建期静态 DOM（回复线程绑定 path /thoughts/<id>/）；
+     访客随想是 /thoughts/ 路径下的 Waline 根评论，运行时渲染成同款卡片按时间混入；
+     comment 字段是 Waline 服务端渲染并消毒过的 HTML，昵称等纯文本字段本地转义 */
   function initThoughts() {
-    var wall = document.getElementById('thoughts-waterfall');
+    var wall = document.getElementById('thoughts-timeline');
     var pager = document.getElementById('thoughts-pager');
     if (!wall || !pager) return;
 
     var PER_PAGE = CFG.thoughtsPerPage || 10;
-    var cards = Array.prototype.slice.call(wall.querySelectorAll('.thought-card'));
-    var total = Math.max(1, Math.ceil(cards.length / PER_PAGE));
+    var SERVER = (CFG.walineServer || '').replace(/\/+$/, '');
+    var API = SERVER + '/api/comment';
+    var totalEl = document.getElementById('thoughts-total');
+    var items = [];
     var current = 1;
 
-    function show(pageNum) {
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+    function fmt(ms) { return new Date(+ms).toLocaleString('zh-CN', { hour12: false }); }
+
+    /* --- Waline 账号登录（发随想需登录）：token 存官方同款 WALINE_USER key，
+       与文章页官方评论组件登录态互通；弹窗登录页通过 postMessage 回传 profile --- */
+    function getAuthUser() {
+      try {
+        var u = JSON.parse(localStorage.getItem('WALINE_USER'));
+        return u && u.token ? u : null;
+      } catch (e) { return null; }
+    }
+    function clearAuthUser() { try { localStorage.removeItem('WALINE_USER'); } catch (e) {} }
+    function walineLogin() {
+      return new Promise(function (resolve) {
+        var w = 450;
+        var h = 700;
+        var left = Math.max(0, (window.screen.width - w) / 2);
+        var top = Math.max(0, (window.screen.height - h) / 2);
+        window.open(SERVER + '/ui/login?lng=zh-CN', '_blank', 'width=' + w + ',height=' + h + ',left=' + left + ',top=' + top);
+        var recv = function (e) {
+          var d = e.data;
+          if (!d || typeof d !== 'object' || d.type !== 'profile' || !d.data) return;
+          window.removeEventListener('message', recv);
+          try { localStorage.setItem('WALINE_USER', JSON.stringify(d.data)); } catch (err) {}
+          resolve(d.data);
+        };
+        window.addEventListener('message', recv);
+      });
+    }
+    // 服务端对无效 token 不报错而是静默降级为匿名发布（实测），提交前必须显式校验
+    function verifyToken(token) {
+      return fetch(SERVER + '/api/token?lang=zh-CN', { headers: { Authorization: 'Bearer ' + token } })
+        .then(function (r) { return r.json(); })
+        .then(function (res) { return !!(res.data && Object.keys(res.data).length); });
+    }
+
+    /* --- 时间流排序 + 分页（静态与访客卡片统一按 data-time 倒序） --- */
+    function collect() {
+      items = Array.prototype.slice.call(wall.querySelectorAll('.thought-item'));
+      items.sort(function (a, b) { return (+b.dataset.time) - (+a.dataset.time); });
+      items.forEach(function (el) { wall.appendChild(el); });
+      if (totalEl) totalEl.textContent = items.length;
+    }
+
+    function show(pageNum, scroll) {
+      var total = Math.max(1, Math.ceil(items.length / PER_PAGE));
       current = Math.min(Math.max(1, pageNum), total);
       var start = (current - 1) * PER_PAGE;
       var end = start + PER_PAGE;
-      cards.forEach(function (card, i) {
-        card.style.display = i >= start && i < end ? '' : 'none';
+      items.forEach(function (el, i) {
+        el.style.display = i >= start && i < end ? '' : 'none';
       });
-      renderPager();
-      wall.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      renderPager(total);
+      if (scroll) wall.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    function renderPager() {
+    function renderPager(total) {
       if (total <= 1) { pager.innerHTML = ''; return; }
       var html = '';
       html += '<button class="pager-btn" data-page="' + (current - 1) + '"' + (current === 1 ? ' disabled' : '') + '>‹ 上一页</button>';
@@ -266,14 +335,273 @@
     pager.addEventListener('click', function (e) {
       var btn = e.target.closest('.pager-btn');
       if (!btn || btn.disabled) return;
-      show(parseInt(btn.dataset.page, 10));
+      show(parseInt(btn.dataset.page, 10), true);
     });
 
-    // 初始化：显示第一页（不滚动）
-    cards.forEach(function (card, i) {
-      card.style.display = i < PER_PAGE ? '' : 'none';
+    collect();
+    show(1, false);
+
+    if (!CFG.walineServer) return; // 未配置评论服务：保持纯静态展示
+
+    /* --- 回复条目/表单模板 --- */
+    function replyHtml(c) {
+      var at = c.reply_user ? '<span class="reply-at">回复 @' + esc(c.reply_user.nick) + '</span> ' : '';
+      return '<div class="reply-item">' +
+        '<img class="reply-avatar" src="' + esc(c.avatar) + '" alt="" loading="lazy">' +
+        '<div class="reply-body">' +
+          '<div class="reply-meta"><span class="reply-nick">' + esc(c.nick) + '</span>' +
+            (c.type === 'administrator' ? '<span class="thought-badge is-admin">博主</span>' : '') +
+            '<time>' + fmt(c.time) + '</time></div>' +
+          '<div class="reply-text">' + at + c.comment + '</div>' +
+        '</div></div>';
+    }
+    function renderThread(roots) {
+      return roots.map(function (c) {
+        var kids = (c.children || []).map(replyHtml).join('');
+        return replyHtml(c) + (kids ? '<div class="reply-children">' + kids + '</div>' : '');
+      }).join('');
+    }
+    /* --- 回复表单：需登录后才能回复，未登录展示登录入口 --- */
+    function replyFormHtml() {
+      var user = getAuthUser();
+      if (user) {
+        return '<form class="reply-form">' +
+          '<textarea name="comment" placeholder="友善回复～" maxlength="500" rows="2" required></textarea>' +
+          '<div class="compose-foot"><span class="compose-hint">以 <b>' + esc(user.display_name || '') + '</b> 回复</span>' +
+          '<button type="submit" class="pager-btn compose-submit">回复</button></div>' +
+        '</form>';
+      }
+      return '<div class="reply-login"><span class="compose-hint">登录后即可回复～</span>' +
+        '<button type="button" class="pager-btn reply-login-btn">登录 / 注册</button></div>';
+    }
+    // 挂载回复表单：按登录态渲染表单/登录入口，登录或失效后自动重渲染
+    function mountReply(box, buildPayload, onApproved) {
+      var holder = document.createElement('div');
+      holder.className = 'reply-compose';
+      box.appendChild(holder);
+      var render = function () {
+        holder.innerHTML = replyFormHtml();
+        if (getAuthUser()) {
+          bindForm(holder.querySelector('.reply-form'), buildPayload, onApproved, render);
+        } else {
+          holder.querySelector('.reply-login-btn').addEventListener('click', function () {
+            walineLogin().then(render);
+          });
+        }
+      };
+      render();
+    }
+
+    /* --- 提交（发随想/回复共用）：一律以登录账号身份提交（Bearer token）；
+       提交前显式校验 token 有效性，失效则清登录态并触发 authLost 回调 --- */
+    function bindForm(form, buildPayload, onApproved, authLost) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var text = form.comment.value.trim();
+        if (!text) return;
+        var btn = form.querySelector('.compose-submit');
+        var label = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '提交中…';
+        var fail = function (msg) {
+          btn.disabled = false;
+          btn.textContent = label;
+          if (msg) showToast(msg);
+        };
+        var doPost = function (token) {
+          fetch(API + '?lang=zh-CN', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+            body: JSON.stringify(buildPayload(text))
+          }).then(function (r) { return r.json(); }).then(function (res) {
+            if (res.errno !== 0 || !res.data) {
+              fail(res.errmsg === 'Comment too fast!' ? '发得太快了，歇一会儿再试～' : (res.errmsg || '提交失败，请稍后再试'));
+              return;
+            }
+            btn.disabled = false;
+            btn.textContent = label;
+            form.comment.value = '';
+            if (res.data.status === 'approved') {
+              onApproved(res.data);
+              showToast('发布成功！');
+            } else {
+              showToast('已提交，审核通过后展示～');
+            }
+          }).catch(function () { fail('网络异常，提交失败'); });
+        };
+        var user = getAuthUser();
+        if (!user) { fail('请先登录'); if (authLost) authLost(); return; }
+        verifyToken(user.token).then(function (ok) {
+          if (!ok) {
+            clearAuthUser();
+            if (authLost) authLost();
+            fail('登录已过期，请重新登录');
+            return;
+          }
+          doPost(user.token);
+        }).catch(function () { fail('网络异常，提交失败'); });
+      });
+    }
+
+    /* --- 回复数徽标 --- */
+    function setCount(item, n) {
+      var el = item.querySelector('.thought-count');
+      if (el) el.textContent = n > 0 ? n : '';
+      item.dataset.count = n;
+    }
+    function bumpCount(item) {
+      setCount(item, (+item.dataset.count || 0) + 1);
+    }
+
+    /* --- 访客随想卡片（结构对齐静态卡片，initReveal/分页/五色轮换均复用） --- */
+    function createVisitorItem(c) {
+      var item = document.createElement('article');
+      item.className = 'thought-item is-visitor';
+      item.dataset.time = c.time;
+      item.dataset.oid = c.objectId;
+      item.dataset.nick = c.nick || '';
+      item._children = c.children || [];
+      item.innerHTML =
+        '<time class="thought-time">🕐 ' + fmt(c.time) + '</time>' +
+        '<div class="thought-card">' +
+          '<div class="thought-author"><img class="reply-avatar" src="' + esc(c.avatar) + '" alt="" loading="lazy">' +
+            '<span class="reply-nick">' + esc(c.nick) + '</span>' +
+            (c.type === 'administrator' ? '<span class="thought-badge is-admin">博主</span>' : '<span class="thought-badge">访客</span>') + '</div>' +
+          '<div class="thought-content">' + c.comment + '</div>' +
+          '<div class="thought-foot"><button class="thought-reply-btn" type="button">💬 回复 <span class="thought-count"></span></button></div>' +
+          '<div class="thought-replies" hidden></div>' +
+        '</div>';
+      setCount(item, (c.children || []).length);
+      return item;
+    }
+
+    /* --- 回复区：点击展开，同时只开一条；内容首开时构建 --- */
+    var openBox = null;
+    wall.addEventListener('click', function (e) {
+      var btn = e.target.closest('.thought-reply-btn');
+      if (!btn) return;
+      var item = btn.closest('.thought-item');
+      var box = item.querySelector('.thought-replies');
+      if (!box.hidden) { box.hidden = true; openBox = null; return; }
+      if (openBox) openBox.hidden = true;
+      openBox = box;
+      box.hidden = false;
+      if (box.dataset.ready) return;
+      box.dataset.ready = '1';
+
+      var listEl = document.createElement('div');
+      listEl.className = 'reply-list';
+      box.appendChild(listEl);
+
+      if (item.classList.contains('is-visitor')) {
+        // 访客随想：回复是其根评论的子评论，children 已随列表返回
+        listEl.innerHTML = (item._children || []).map(replyHtml).join('');
+        var rootId = +item.dataset.oid;
+        var rootNick = item.dataset.nick;
+        mountReply(box, function (text) {
+          return { comment: text, url: '/thoughts/', pid: rootId, rid: rootId, at: rootNick, ua: navigator.userAgent };
+        }, function (data) {
+          // POST 返回不含 reply_user，本地补上（刷新后由 GET 返回）
+          if (!data.reply_user) data.reply_user = { nick: rootNick };
+          listEl.insertAdjacentHTML('beforeend', replyHtml(data));
+          bumpCount(item);
+        });
+      } else {
+        // 博主随想：独立 path 懒加载回复线程（根评论 + 一层楼中楼）
+        var path = '/thoughts/' + item.dataset.id + '/';
+        listEl.innerHTML = '<div class="reply-loading">回复加载中…</div>';
+        fetch(API + '?path=' + encodeURIComponent(path) + '&page=1&pageSize=50&sortBy=insertedAt_asc&lang=zh-CN')
+          .then(function (r) { return r.json(); })
+          .then(function (res) {
+            listEl.innerHTML = renderThread((res.data && res.data.data) || []);
+          })
+          .catch(function () { listEl.innerHTML = ''; });
+        mountReply(box, function (text) {
+          return { comment: text, url: path, ua: navigator.userAgent };
+        }, function (data) {
+          listEl.insertAdjacentHTML('beforeend', replyHtml(data));
+          bumpCount(item);
+        });
+      }
     });
-    renderPager();
+
+    /* --- 拉取访客随想混入时间流 + 批量回填博主随想回复数 --- */
+    var staticItems = items.slice();
+    fetch(API + '?path=' + encodeURIComponent('/thoughts/') + '&page=1&pageSize=50&sortBy=insertedAt_desc&lang=zh-CN')
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        var roots = (res.data && res.data.data) || [];
+        if (!roots.length) return;
+        roots.forEach(function (c) { wall.appendChild(createVisitorItem(c)); });
+        collect();
+        show(current, false);
+        initReveal();
+      })
+      .catch(function () { /* 网络失败：保持纯静态展示 */ });
+    if (staticItems.length) {
+      var urls = staticItems.map(function (el) { return '/thoughts/' + el.dataset.id + '/'; });
+      fetch(API + '?type=count&url=' + encodeURIComponent(urls.join(',')) + '&lang=zh-CN')
+        .then(function (r) { return r.json(); })
+        .then(function (res) {
+          var counts = res.data || [];
+          staticItems.forEach(function (el, i) { setCount(el, +counts[i] || 0); });
+        })
+        .catch(function () {});
+    }
+
+    /* --- 页首「发随想」面板：需登录 Waline 账号后才能发布 --- */
+    var composeToggle = document.getElementById('compose-toggle');
+    var composeLogin = document.getElementById('compose-login');
+    var composePanel = document.getElementById('compose-panel');
+    var composeUser = document.getElementById('compose-user');
+    // 登录失效兜底（bindForm auth 校验失败时回调）：收起表单、展示登录入口
+    function onAuthLost() {
+      if (!composePanel) return;
+      composePanel.hidden = true;
+      composeLogin.hidden = false;
+    }
+    if (composeToggle && composeLogin && composePanel && composeUser) {
+      var setUserChip = function () {
+        var user = getAuthUser();
+        if (user) {
+          composeUser.innerHTML = '以 <b>' + esc(user.display_name || '') + '</b> 的身份发布　' +
+            '<button type="button" class="compose-logout">退出登录</button>';
+        }
+        return user;
+      };
+      var openPanel = function () {
+        composeLogin.hidden = true;
+        setUserChip();
+        composePanel.hidden = false;
+        composePanel.comment.focus();
+      };
+      composeToggle.addEventListener('click', function () {
+        if (getAuthUser()) {
+          composeLogin.hidden = true;
+          if (composePanel.hidden) openPanel();
+          else composePanel.hidden = true;
+        } else {
+          composePanel.hidden = true;
+          composeLogin.hidden = !composeLogin.hidden;
+        }
+      });
+      document.getElementById('compose-login-btn').addEventListener('click', function () {
+        walineLogin().then(openPanel);
+      });
+      composeUser.addEventListener('click', function (e) {
+        if (!e.target.closest('.compose-logout')) return;
+        clearAuthUser();
+        onAuthLost();
+      });
+      bindForm(composePanel, function (text) {
+        return { comment: text, url: '/thoughts/', ua: navigator.userAgent };
+      }, function (data) {
+        wall.appendChild(createVisitorItem(data));
+        collect();
+        show(1, false);
+        composePanel.hidden = true;
+      }, onAuthLost);
+    }
   }
 
   /* ---------- 顶栏滚动状态 ---------- */
