@@ -31,7 +31,7 @@
     modal.hidden = true;
     document.body.classList.remove('modal-open');
     input.value = '';
-    results.innerHTML = '<li class="search-hint">输入关键词开始搜索（本地索引，无需联网服务）</li>';
+    results.innerHTML = '<li class="search-hint">输入关键词开始搜索</li>';
   }
 
   function escapeHtml(str) {
@@ -42,7 +42,7 @@
 
   function render(list, keyword) {
     if (!keyword) {
-      results.innerHTML = '<li class="search-hint">输入关键词开始搜索（本地索引，无需联网服务）</li>';
+      results.innerHTML = '<li class="search-hint">输入关键词开始搜索</li>';
       return;
     }
     if (!list.length) {
