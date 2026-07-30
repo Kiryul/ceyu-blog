@@ -289,15 +289,15 @@ body.is-home .post-list { padding-top: 112px; }
 
 /* 卡片五色循环着色：半透明底过渡到柔和色调，壁纸透出同时打破单调 */
 .post-card:nth-child(5n + 1),
-.thought-card:nth-child(5n + 1) { background: linear-gradient(135deg, var(--card-glass) 20%, var(--tint-1) 100%); }
+.thought-item:nth-child(5n + 1) .thought-card { background: linear-gradient(135deg, var(--card-glass) 20%, var(--tint-1) 100%); }
 .post-card:nth-child(5n + 2),
-.thought-card:nth-child(5n + 2) { background: linear-gradient(135deg, var(--card-glass) 20%, var(--tint-2) 100%); }
+.thought-item:nth-child(5n + 2) .thought-card { background: linear-gradient(135deg, var(--card-glass) 20%, var(--tint-2) 100%); }
 .post-card:nth-child(5n + 3),
-.thought-card:nth-child(5n + 3) { background: linear-gradient(135deg, var(--card-glass) 20%, var(--tint-3) 100%); }
+.thought-item:nth-child(5n + 3) .thought-card { background: linear-gradient(135deg, var(--card-glass) 20%, var(--tint-3) 100%); }
 .post-card:nth-child(5n + 4),
-.thought-card:nth-child(5n + 4) { background: linear-gradient(135deg, var(--card-glass) 20%, var(--tint-4) 100%); }
+.thought-item:nth-child(5n + 4) .thought-card { background: linear-gradient(135deg, var(--card-glass) 20%, var(--tint-4) 100%); }
 .post-card:nth-child(5n),
-.thought-card:nth-child(5n) { background: linear-gradient(135deg, var(--card-glass) 20%, var(--tint-5) 100%); }
+.thought-item:nth-child(5n) .thought-card { background: linear-gradient(135deg, var(--card-glass) 20%, var(--tint-5) 100%); }
 .post-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
 .post-card-link { display: flex; }
 .post-card-cover { flex: 0 0 220px; max-height: 150px; overflow: hidden; }
@@ -552,24 +552,196 @@ a.tag-chip:hover { background: var(--primary); color: #fff; }
 }
 .side-tags { display: flex; flex-wrap: wrap; }
 
-/* ---------- 个人随想（瀑布流） ---------- */
-.thoughts-waterfall { column-count: 2; column-gap: 18px; }
+/* ---------- 个人随想（单列时间流） ---------- */
+.thoughts-timeline {
+  position: relative;
+  padding-left: 30px;
+  max-width: 720px;
+}
+/* 左侧竖向轴线：主题色渐变细线 */
+.thoughts-timeline::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 7px;
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, var(--primary), var(--accent), var(--primary));
+  opacity: 0.45;
+}
+.thought-item { position: relative; margin-bottom: 26px; }
+/* 轴上节点圆点，悬停发光 */
+.thought-item::before {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: -28px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid var(--bg);
+  transition: box-shadow 0.28s, background 0.28s;
+}
+.thought-item:hover::before {
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+}
+.thought-time {
+  display: block;
+  font-size: 12.5px;
+  color: var(--text-soft);
+  margin-bottom: 8px;
+}
 .thought-card {
-  break-inside: avoid;
   background: var(--card-glass);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 18px 20px;
-  margin-bottom: 18px;
   transition: transform 0.28s, box-shadow 0.28s;
 }
 .thought-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
 .thought-content { font-size: 15px; margin-bottom: 12px; }
+.thought-content p { margin: 0 0 6px; }
+.thought-content p:last-child { margin-bottom: 0; }
 .thought-images { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .thought-images img { border-radius: 10px; max-height: 180px; object-fit: cover; }
-.thought-date { font-size: 12.5px; color: var(--text-soft); }
+
+/* 访客随想：作者行 + 身份角标 */
+.thought-author { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.thought-badge {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-soft);
+  background: var(--bg-alt);
+}
+.thought-badge.is-admin { color: var(--primary); border-color: var(--primary); background: transparent; }
+
+/* 卡片操作栏：回复按钮 + 回复数徽标 */
+.thought-foot { display: flex; justify-content: flex-end; }
+.thought-reply-btn {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-soft);
+  padding: 2px 6px;
+  border-radius: 8px;
+  transition: color 0.2s, background 0.2s;
+}
+.thought-reply-btn:hover { color: var(--primary); background: var(--bg-alt); }
+.thought-count { font-weight: 600; }
+
+/* 发随想面板 + 回复表单（共用输入样式） */
+.thoughts-compose { max-width: 720px; margin-bottom: 26px; }
+.compose-toggle {
+  border: 1px dashed var(--border);
+  background: var(--card-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--text-soft);
+  width: 100%;
+  text-align: left;
+  padding: 12px 18px;
+  border-radius: 14px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: color 0.2s, border-color 0.2s;
+}
+.compose-toggle:hover { color: var(--primary); border-color: var(--primary); }
+.compose-login {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--card-bg);
+}
+.compose-user { font-size: 13px; color: var(--text-soft); margin-bottom: 10px; }
+.compose-user b { color: var(--primary); font-weight: 600; }
+.compose-logout {
+  border: none;
+  background: none;
+  color: var(--text-soft);
+  font-size: 12px;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+.compose-logout:hover { color: var(--accent); }
+.compose-panel, .reply-form { margin-top: 12px; }
+.compose-meta { display: flex; gap: 10px; margin-bottom: 10px; }
+.compose-meta input,
+.compose-panel textarea,
+.reply-form textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card-bg);
+  color: var(--text);
+  padding: 8px 12px;
+  font-size: 14px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.compose-meta input:focus,
+.compose-panel textarea:focus,
+.reply-form textarea:focus { border-color: var(--primary); }
+.compose-panel textarea, .reply-form textarea { resize: vertical; margin-bottom: 10px; }
+.compose-foot { display: flex; justify-content: flex-end; align-items: center; gap: 12px; }
+.compose-hint { font-size: 12.5px; color: var(--text-soft); margin-right: auto; }
+.compose-submit:disabled { opacity: 0.5; cursor: wait; }
+.reply-login {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+.reply-login .compose-hint { margin-right: auto; }
+
+/* 卡片内回复区：列表 + 一层楼中楼缩进 */
+.thought-replies { border-top: 1px dashed var(--border); margin-top: 12px; padding-top: 12px; }
+.reply-loading { font-size: 13px; color: var(--text-soft); }
+.reply-item { display: flex; gap: 10px; margin-bottom: 12px; }
+.reply-avatar { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; }
+.reply-body { min-width: 0; flex: 1; }
+.reply-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 3px; }
+.reply-nick { font-size: 13px; font-weight: 600; }
+.reply-meta time { font-size: 11.5px; color: var(--text-soft); }
+.reply-text { font-size: 14px; word-break: break-word; }
+.reply-text p { display: inline; margin: 0; }
+.reply-text .wl-emoji { height: 1.25em; vertical-align: -0.25em; }
+.reply-at { color: var(--primary); font-size: 13px; }
+.reply-children { margin-left: 40px; }
+
+/* 轻提示 toast（z-index 约定：顶栏 100 / 搜索 200 / 进度条 300） */
+#site-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 60px;
+  transform: translate(-50%, 16px);
+  background: var(--card-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 9px 20px;
+  font-size: 14px;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s, transform 0.25s;
+  z-index: 250;
+}
+#site-toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 /* ---------- 搜索弹层 ---------- */
 .search-modal { position: fixed; inset: 0; z-index: 200; }
@@ -751,7 +923,12 @@ html[data-theme='dark'] .aplayer .aplayer-miniswitcher .aplayer-icon path {
   .post-scroll-btns { right: 16px; bottom: 20px; }
   .archive-layout { flex-direction: column; }
   .archive-side { width: 100%; position: static; }
-  .thoughts-waterfall { column-count: 1; }
+  /* 时间流窄屏：轴线贴左、卡片占满剩余宽度，昵称/邮箱纵向排列 */
+  .thoughts-timeline { padding-left: 24px; }
+  .thoughts-timeline::before { left: 4px; }
+  .thought-item::before { left: -25px; width: 10px; height: 10px; }
+  .compose-meta { flex-direction: column; gap: 8px; }
+  .reply-children { margin-left: 22px; }
   .post-card-link { flex-direction: column; }
   .post-card-cover { flex: none; max-height: 170px; }
 

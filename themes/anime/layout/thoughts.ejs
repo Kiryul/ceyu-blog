@@ -1,25 +1,49 @@
 <%
-  // 个人随想：数据来自 source/_data/thoughts.yml，按时间倒序，前端瀑布流 + 分页
+  // 个人随想：数据来自 source/_data/thoughts.yml，按时间倒序，单列时间流 + 分页
+  // 互动能力（访客随想 / 每条回复）由 main.js 走 Waline REST API 动态渲染
   const thoughts = (site.data.thoughts || []).slice().sort(function (a, b) {
     return new Date(b.date) - new Date(a.date);
   });
 %>
 <section class="container thoughts-page">
-  <h1 class="page-title">个人随想 <small>共 <%= thoughts.length %> 条</small></h1>
+  <h1 class="page-title">个人随想 <small>共 <span id="thoughts-total"><%= thoughts.length %></span> 条</small></h1>
 
-  <div class="thoughts-waterfall" id="thoughts-waterfall">
-    <% thoughts.forEach(function (t, i) { %>
-      <div class="thought-card" data-index="<%= i %>">
-        <p class="thought-content"><%= t.content %></p>
-        <% if (t.images && t.images.length) { %>
-          <div class="thought-images">
-            <% t.images.forEach(function (img) { %>
-              <img src="<%- url_for(img) %>" alt="随想配图" loading="lazy">
-            <% }) %>
-          </div>
-        <% } %>
-        <time class="thought-date">🕐 <%= new Date(t.date).toLocaleString('zh-CN', { hour12: false }) %></time>
+  <!-- 访客发随想：需登录 Waline 账号，提交为 /thoughts/ 路径下的根评论（身份来自账号） -->
+  <div class="thoughts-compose">
+    <button class="compose-toggle" id="compose-toggle" type="button">✍️ 我也想说两句</button>
+    <div class="compose-login" id="compose-login" hidden>
+      <span class="compose-hint">登录后即可发布随想～</span>
+      <button type="button" class="pager-btn" id="compose-login-btn">登录 / 注册</button>
+    </div>
+    <form class="compose-panel" id="compose-panel" hidden>
+      <div class="compose-user" id="compose-user"></div>
+      <textarea name="comment" placeholder="写下你的随想……" maxlength="500" rows="3" required></textarea>
+      <div class="compose-foot">
+        <span class="compose-hint">随想将以你的账号身份发布</span>
+        <button type="submit" class="pager-btn compose-submit">发布</button>
       </div>
+    </form>
+  </div>
+
+  <div class="thoughts-timeline" id="thoughts-timeline">
+    <% thoughts.forEach(function (t) { %>
+      <article class="thought-item" data-id="<%= t.id %>" data-time="<%= new Date(t.date).getTime() %>">
+        <time class="thought-time">🕐 <%= new Date(t.date).toLocaleString('zh-CN', { hour12: false }) %></time>
+        <div class="thought-card">
+          <p class="thought-content"><%= t.content %></p>
+          <% if (t.images && t.images.length) { %>
+            <div class="thought-images">
+              <% t.images.forEach(function (img) { %>
+                <img src="<%- url_for(img) %>" alt="随想配图" loading="lazy">
+              <% }) %>
+            </div>
+          <% } %>
+          <div class="thought-foot">
+            <button class="thought-reply-btn" type="button">💬 回复 <span class="thought-count"></span></button>
+          </div>
+          <div class="thought-replies" hidden></div>
+        </div>
+      </article>
     <% }) %>
   </div>
 

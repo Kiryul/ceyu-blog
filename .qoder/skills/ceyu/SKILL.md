@@ -28,16 +28,17 @@ description: 策屿博客一键发布工具。子命令 article 将 source/_post
 
 ## 发布随想（idea）
 
-1. **构造新条目**：date 取当前时间 `YYYY-MM-DD HH:mm:ss`；content 为用户输入原文。
+1. **构造新条目**：id 取 `t` + 当前时间紧凑格式 `tYYYYMMDDHHmmss`（如 t20260730163030，是该随想回复线程的唯一标识，发布后不可改）；date 取当前时间 `YYYY-MM-DD HH:mm:ss`；content 为用户输入原文。
    - 若内容包含 `: `、`#`，或以 `-`、`[`、`{`、引号等 YAML 特殊字符开头，content 值用双引号包裹并把内部 `"` 转义为 `\"`；否则保持裸文本。
-2. **插入到列表最前**（thoughts.yml 按时间倒序，新的在最上面）：用 SearchReplace 在头部注释后的**第一个 `- content:` 条目之前**插入两行：
+2. **插入到列表最前**（thoughts.yml 按时间倒序，新的在最上面）：用 SearchReplace 在头部注释后的**第一个 `- id:` 条目之前**插入三行：
 
    ```yaml
-   - content: <内容>
+   - id: t<当前时间紧凑格式>
+     content: <内容>
      date: <当前时间>
    ```
 
-   缩进严格对齐现有条目（`- content:` 顶格，`date:` 前两个空格）。**禁止用 echo/Set-Content 等 shell 命令改写此文件**（会破坏 UTF-8 中文编码）。
+   缩进严格对齐现有条目（`- id:` 顶格，`content:`、`date:` 前两个空格）。**禁止用 echo/Set-Content 等 shell 命令改写此文件**（会破坏 UTF-8 中文编码）。
 3. **验证**：Read 回读文件头部，确认新条目格式与旧条目一致、无缩进错位。
 4. **提交推送**：按「统一发布流程」执行，commit message 为 `thought: 新增随想`，只 `git add source/_data/thoughts.yml`。
 
