@@ -347,7 +347,18 @@
     if (navigating) return;
     navigating = true;
     var url = new URL(href, location.href);
-    fetch(url.href).then(function (res) {
+    // 请求期间顶部亮起进度条：慢网络下点击立刻有反馈，不再被感知为"没反应"
+    document.documentElement.classList.add('pjax-loading');
+    // 移动网络下 fetch 可能长时间挂起（不成功也不失败），此时 navigating 会一直为
+    // true，后续所有点击都被静默吞掉——超时中止请求并走 catch 退回整页跳转
+    var ctrl = 'AbortController' in window ? new AbortController() : null;
+    var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 8000) : null;
+    var done = function () {
+      if (timer) clearTimeout(timer);
+      document.documentElement.classList.remove('pjax-loading');
+      navigating = false;
+    };
+    fetch(url.href, ctrl ? { signal: ctrl.signal } : undefined).then(function (res) {
       if (!res.ok) throw new Error('HTTP ' + res.status);
       var type = res.headers.get('content-type') || '';
       if (type.indexOf('text/html') < 0) throw new Error('non-html');
@@ -361,7 +372,7 @@
         history.pushState({ pjax: true }, '', url.href);
       }
       lastPath = url.pathname + url.search;
-      navigating = false;
+      done();
       var swap = function () { swapTo(doc, url, restoreY); };
       if (document.startViewTransition && !REDUCED) {
         document.startViewTransition(swap);
@@ -369,8 +380,8 @@
         swap();
       }
     }).catch(function () {
-      // 任何异常（网络失败 / 非站内布局页面）退回整页跳转
-      navigating = false;
+      // 任何异常（网络失败 / 超时中止 / 非站内布局页面）退回整页跳转
+      done();
       location.href = url.href;
     });
   }
@@ -387,7 +398,9 @@
     if (/\.(?!html?$)[a-z0-9]+$/i.test(a.pathname)) return;
     if (a.pathname === location.pathname && a.search === location.search) {
       if (a.hash) return; // 同页锚点交给浏览器
-      e.preventDefault(); // 点击当前页链接：平滑回顶即可
+      e.preventDefault(); // 点击当前页链接：收起移动端菜单并平滑回顶
+      var toggle = document.getElementById('nav-toggle');
+      if (toggle) toggle.checked = false;
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
