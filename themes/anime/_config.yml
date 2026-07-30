@@ -29,6 +29,36 @@ waline:
 # 首页语录切换间隔（毫秒）
 quote_interval: 8000
 
+# Live2D 看板娘（oh-my-live2d，CDN 引入，停靠右下角，加载失败静默降级）
+# model 需支持跨域且稳定；推荐用 unpkg npm 模型包（model.oml2d.com 国内易 CONNECTION_RESET）
+# 更多模型：https://www.npmjs.com/search?q=live2d-widget-model
+live2d:
+  enable: true
+  model: https://unpkg.com/live2d-widget-model-shizuku@1.0.5/assets/shizuku.model.json
+  scale: 0.115
+  # 模型位置偏移 [x, y]：y 为正向下移；头部（双马尾）被上沿裁切时调大 y
+  position: [0, 45]
+  # 展示区域尺寸（必须带 px 单位，传纯数字无效）；canvas 自动 2x，放大不变形
+  stageWidth: 210px
+  stageHeight: 220px
+  # 移动端是否展示（小屏易遮挡内容，默认关闭）
+  mobile: false
+
+# 音乐播放器（APlayer 悬浮吸底模式，左下角）
+music:
+  enable: true
+  # 方式一（默认）：Meting 在线歌单 —— server: netease/tencent，type: playlist/song/album，id: 歌单 ID
+  meting:
+    server: tencent
+    type: playlist
+    id: '9755489371'   # QQ 音乐公开歌单 ID（y.qq.com 分享链接 /playlist/ 后的数字）
+  # 方式二：自维护歌曲列表（填写后优先于 meting，音频文件放 source/music/ 下）
+  # songs:
+  #   - name: 歌名
+  #     artist: 歌手
+  #     url: /music/song.mp3
+  #     cover: /img/cover.jpg
+
 # 页脚
 footer:
   since: 2026

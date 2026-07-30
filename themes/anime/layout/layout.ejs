@@ -51,10 +51,13 @@
       thoughtsPerPage: <%= theme.thoughts_per_page || 10 %>,
       walineServer: '<%= theme.waline.serverURL %>',
       bgLight: '<%- (theme.background && theme.background.light) ? url_for(theme.background.light) : '' %>',
-      bgDark: '<%- (theme.background && theme.background.dark) ? url_for(theme.background.dark) : '' %>'
+      bgDark: '<%- (theme.background && theme.background.dark) ? url_for(theme.background.dark) : '' %>',
+      live2d: <%- JSON.stringify(theme.live2d || {}) %>,
+      music: <%- JSON.stringify(theme.music || {}) %>
     };
   </script>
   <script src="<%- url_for('/js/main.js') %>"></script>
   <script src="<%- url_for('/js/search.js') %>"></script>
+  <script src="<%- url_for('/js/widgets.js') %>"></script>
 </body>
 </html>

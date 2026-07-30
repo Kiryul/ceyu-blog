@@ -625,6 +625,44 @@ a.tag-chip:hover { background: var(--primary); color: #fff; }
   to { opacity: 1; }
 }
 
+/* ---------- 挂件：Live2D 看板娘 / 音乐播放器 ---------- */
+/* 层级约定：顶栏 100 / 搜索弹层 200，挂件压在顶栏之下、正文之上 */
+#oml2d-stage { z-index: 90 !important; }
+body .aplayer.aplayer-fixed { z-index: 95; }
+body .aplayer.aplayer-fixed .aplayer-body { bottom: 0; }
+
+/* APlayer 暗色主题适配（官方样式仅有亮色，用站点变量对齐） */
+html[data-theme='dark'] .aplayer {
+  background: var(--card-bg);
+  color: var(--text);
+}
+html[data-theme='dark'] .aplayer .aplayer-info {
+  border-color: var(--border);
+}
+html[data-theme='dark'] .aplayer .aplayer-info .aplayer-music .aplayer-title {
+  color: var(--text);
+}
+html[data-theme='dark'] .aplayer .aplayer-info .aplayer-music .aplayer-author {
+  color: var(--text-soft);
+}
+html[data-theme='dark'] .aplayer .aplayer-list {
+  background: var(--card-bg);
+}
+html[data-theme='dark'] .aplayer .aplayer-list ol li {
+  border-color: var(--border);
+  color: var(--text);
+}
+html[data-theme='dark'] .aplayer .aplayer-list ol li:hover,
+html[data-theme='dark'] .aplayer .aplayer-list ol li.aplayer-list-light {
+  background: var(--bg-alt);
+}
+html[data-theme='dark'] .aplayer .aplayer-miniswitcher {
+  background: var(--bg-alt);
+}
+html[data-theme='dark'] .aplayer .aplayer-miniswitcher .aplayer-icon path {
+  fill: var(--text-soft);
+}
+
 /* ---------- 响应式 ---------- */
 @media (max-width: 820px) {
   .hero-title { font-size: 38px; letter-spacing: 3px; }
