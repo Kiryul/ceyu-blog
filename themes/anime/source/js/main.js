@@ -106,8 +106,12 @@
 
   /* ---------- 首页 hero：语录 + 壁纸 + 下滑 ---------- */
   var heroTimer = null;
+  var heroWheel = null;   // window 级滚轮接管，pjax 换页时先解绑再重挂
+  var heroSettle = null;  // 非滚轮滚动（拖滚动条/触屏）停在过渡带时的就近吸附
   function initHero() {
     if (heroTimer) { clearInterval(heroTimer); heroTimer = null; }
+    if (heroWheel) { window.removeEventListener('wheel', heroWheel); heroWheel = null; }
+    if (heroSettle) { window.removeEventListener('scroll', heroSettle); heroSettle = null; }
     var hero = document.getElementById('hero');
     if (!hero) return;
     var dataEl = document.getElementById('hero-data');
@@ -157,21 +161,65 @@
       }
     }
 
-    // 下滑箭头：点击平滑滚动至近期文章；hero 内滚轮下滑同样触发
+    // hero ⇆ 近期文章 整屏吸附：过渡带内滚轮下滑直达文章区、上滑直回 hero，
+    // 吸附动画期间吞掉滚轮事件，避免被打断停在半截。
+    // 自定义缓动（easeInOutCubic）替代原生 smooth：起止柔和不生硬，
+    // 并联动 hero 内容渐隐/渐显与文章区标题入场（见 style.css .snap-in）
     var recent = document.getElementById('recent');
-    var goRecent = function () {
-      if (recent) recent.scrollIntoView({ behavior: 'smooth' });
+    var snapLock = false;
+    var snapTo = function (top) {
+      if (snapLock) return;
+      snapLock = true;
+      var content = hero.querySelector('.hero-content');
+      var startY = window.scrollY;
+      var dist = top - startY;
+      var down = dist > 0;
+      if (REDUCED || !dist) {
+        window.scrollTo({ top: top, behavior: 'instant' });
+        snapLock = false;
+        return;
+      }
+      if (down && recent) {
+        recent.classList.add('snap-in');
+        setTimeout(function () { recent.classList.remove('snap-in'); }, 1400);
+      }
+      var dur = 750, t0 = performance.now();
+      var step = function (now) {
+        var p = Math.min((now - t0) / dur, 1);
+        var e = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+        window.scrollTo({ top: startY + dist * e, behavior: 'instant' });
+        if (content) content.style.opacity = String(down ? 1 - e : e);
+        if (p < 1) { requestAnimationFrame(step); return; }
+        if (content) content.style.opacity = '';
+        snapLock = false;
+      };
+      requestAnimationFrame(step);
     };
+    var edgeTop = function () { return recent ? recent.offsetTop : hero.offsetHeight; };
+    var goRecent = function () { snapTo(edgeTop()); };
     var arrow = document.getElementById('scroll-down');
     if (arrow) arrow.addEventListener('click', goRecent);
-    var wheelLock = false;
-    hero.addEventListener('wheel', function (e) {
-      if (e.deltaY > 0 && window.scrollY < hero.offsetHeight / 3 && !wheelLock) {
-        wheelLock = true;
-        goRecent();
-        setTimeout(function () { wheelLock = false; }, 1200);
-      }
-    }, { passive: true });
+    heroWheel = function (e) {
+      if (document.body.classList.contains('modal-open')) return; // 弹窗内滚动不接管
+      if (snapLock) { e.preventDefault(); return; }
+      var edge = edgeTop();
+      var y = window.scrollY;
+      if (e.deltaY > 0 && y < edge - 4) { e.preventDefault(); goRecent(); }
+      else if (e.deltaY < 0 && y > 0 && y <= edge + 4) { e.preventDefault(); snapTo(0); }
+    };
+    window.addEventListener('wheel', heroWheel, { passive: false });
+    // 拖滚动条 / 触屏等停在 hero 与文章区之间时，滚动停止后就近吸附收尾
+    var settleTimer = null;
+    heroSettle = function () {
+      if (snapLock) return;
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(function () {
+        var edge = edgeTop();
+        var y = window.scrollY;
+        if (y > 4 && y < edge - 4) snapTo(y < edge / 2 ? 0 : edge);
+      }, 160);
+    };
+    window.addEventListener('scroll', heroSettle, { passive: true });
 
     // hover 视差光晕
     hero.addEventListener('mousemove', function (e) {
@@ -250,6 +298,8 @@
      支持 startViewTransition 时由 VT 完成旧页垫底、新页渐显（规则见 style.css） */
   var navigating = false;
   var lastPath = location.pathname + location.search;
+  // 后退恢复滚动位置由 pjax 自行接管，关掉浏览器原生恢复避免两套机制打架
+  if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
 
   // 换页后同步顶栏导航的当前项高亮（直接取服务端渲染好的 active 类）
   function syncNav(doc) {
@@ -258,7 +308,21 @@
     cur.forEach(function (a, i) { if (next[i]) a.className = next[i].className; });
   }
 
-  function swapTo(doc, url) {
+  // 恢复历史滚动位置：图片等异步资源撑开页面前 scrollTo 会被钳制截短，
+  // 短暂重试直至到位；用户主动滚动则立即放弃接管
+  function restoreScroll(top) {
+    window.scrollTo({ top: top, behavior: 'instant' });
+    var tries = 0, userScrolled = false;
+    var mark = function () { userScrolled = true; };
+    window.addEventListener('wheel', mark, { once: true, passive: true });
+    window.addEventListener('touchstart', mark, { once: true, passive: true });
+    var retry = setInterval(function () {
+      if (userScrolled || ++tries > 10 || Math.abs(window.scrollY - top) < 4) { clearInterval(retry); return; }
+      window.scrollTo({ top: top, behavior: 'instant' });
+    }, 120);
+  }
+
+  function swapTo(doc, url, restoreY) {
     document.title = doc.title;
     document.body.className = doc.body.className; // 同步 is-home 等页面级类
     var oldMain = document.querySelector('.site-main');
@@ -270,14 +334,16 @@
     if (toggle) toggle.checked = false;
     var modal = document.getElementById('search-modal');
     if (modal) modal.hidden = true;
-    // 有锚点滚到锚点，否则回到顶部
+    // 后退/前进恢复当时滚动位置 > 锚点 > 回顶；新页定位必须瞬时到位：
+    // 全局 CSS smooth 会把回顶变成动画，被用户残余滚轮输入中途取消后停在半路
     var anchor = url.hash && document.getElementById(decodeURIComponent(url.hash.slice(1)));
-    if (anchor) anchor.scrollIntoView();
-    else window.scrollTo(0, 0);
+    if (typeof restoreY === 'number') restoreScroll(restoreY);
+    else if (anchor) anchor.scrollIntoView({ behavior: 'instant' });
+    else window.scrollTo({ top: 0, behavior: 'instant' });
     initPage();
   }
 
-  function pjaxTo(href, push) {
+  function pjaxTo(href, push, restoreY) {
     if (navigating) return;
     navigating = true;
     var url = new URL(href, location.href);
@@ -289,10 +355,14 @@
     }).then(function (html) {
       var doc = new DOMParser().parseFromString(html, 'text/html');
       if (!doc.querySelector('.site-main')) throw new Error('layout mismatch');
-      if (push) history.pushState({ pjax: true }, '', url.href);
+      if (push) {
+        // 把当前滚动位置存进即将离开的历史条目，供后退时恢复
+        history.replaceState({ pjax: true, scrollY: window.scrollY }, '', location.href);
+        history.pushState({ pjax: true }, '', url.href);
+      }
       lastPath = url.pathname + url.search;
       navigating = false;
-      var swap = function () { swapTo(doc, url); };
+      var swap = function () { swapTo(doc, url, restoreY); };
       if (document.startViewTransition && !REDUCED) {
         document.startViewTransition(swap);
       } else {
@@ -325,11 +395,32 @@
     pjaxTo(a.href, true);
   });
 
-  // 浏览器前进 / 后退同样走无刷新渲染
-  window.addEventListener('popstate', function () {
+  // 浏览器前进 / 后退同样走无刷新渲染，并恢复该历史条目记录的滚动位置
+  window.addEventListener('popstate', function (e) {
     var p = location.pathname + location.search;
     if (p === lastPath) return; // 纯 hash 变化不处理
-    pjaxTo(location.href, false);
+    pjaxTo(location.href, false, e.state && typeof e.state.scrollY === 'number' ? e.state.scrollY : undefined);
+  });
+
+  /* ---------- 文章页回退按钮：回到点进文章时的列表位置 ---------- */
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest && e.target.closest('#post-back');
+    if (!btn) return;
+    // 站内路径进来的走历史后退（pjax 会恢复来源页滚动位置），直达/外链进来的退回首页
+    var fromSite = (history.state && history.state.pjax) ||
+      (document.referrer && document.referrer.indexOf(location.origin) === 0);
+    if (fromSite && history.length > 1) history.back();
+    else pjaxTo(CFG.root || '/', true);
+  });
+
+  /* ---------- 文章页右下角快捷滚动：回顶 / 到底 ---------- */
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest) return;
+    if (e.target.closest('#scroll-top-btn')) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (e.target.closest('#scroll-bottom-btn')) {
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+    }
   });
 
   /* ---------- 全局鼠标点击星星粒子特效 ---------- */

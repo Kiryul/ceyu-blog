@@ -18,7 +18,7 @@ thoughts_per_page: 10
 background:
   light: /img/wallpapers/wallpaper-19291403720086400.png
   dark: /img/wallpapers/wallpaper-19285794097025920.png
-  veil: 0.68
+  veil: 0.5
 
 # Waline 评论 + 浏览量服务
 # 部署 Waline 后填写 serverURL（如 https://your-waline.vercel.app）

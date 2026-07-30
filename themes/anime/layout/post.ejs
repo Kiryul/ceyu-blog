@@ -1,4 +1,6 @@
 <article class="container post-detail">
+  <!-- 回退按钮：返回点进这篇文章的列表页并恢复当时滚动位置（逻辑在 main.js） -->
+  <button class="post-back" id="post-back" type="button" aria-label="返回上一页">‹ 返回</button>
   <header class="post-header">
     <% if (page.categories && page.categories.length) { %>
       <div class="post-cat">
@@ -43,3 +45,14 @@
     <% } %>
   </section>
 </article>
+
+<!-- 右下角快捷滚动：回顶 / 到底（逻辑在 main.js）。
+     必须放在 .post-detail 外：面板的 backdrop-filter 会让内部 fixed 元素相对面板而非视口定位 -->
+<div class="post-scroll-btns">
+  <button class="scroll-btn" id="scroll-top-btn" type="button" aria-label="回到顶部">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+  </button>
+  <button class="scroll-btn" id="scroll-bottom-btn" type="button" aria-label="去到底部">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+  </button>
+</div>

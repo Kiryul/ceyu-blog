@@ -1,6 +1,6 @@
 ---
 title: 从零搭建 Java 开发环境：JDK 17 + IntelliJ IDEA 保姆级教程
-date: 2026-07-30 20:00:00
+date: 2026-07-30 09:00:00
 categories: 技术博文
 tags: [Java, JDK, IntelliJ IDEA, 环境搭建]
 ---
