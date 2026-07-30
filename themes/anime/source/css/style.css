@@ -665,6 +665,8 @@ a.tag-chip:hover { background: var(--primary); color: #fff; }
   border-radius: 14px;
   background: var(--card-bg);
 }
+/* display:flex 会覆盖 [hidden] 的默认 display:none，须显式恢复，否则登录后登录入口仍可见 */
+.compose-login[hidden] { display: none; }
 .compose-user { font-size: 13px; color: var(--text-soft); margin-bottom: 10px; }
 .compose-user b { color: var(--primary); font-weight: 600; }
 .compose-logout {
@@ -707,6 +709,71 @@ a.tag-chip:hover { background: var(--primary); color: #fff; }
   margin-top: 10px;
 }
 .reply-login .compose-hint { margin-right: auto; }
+
+/* 发随想/回复工具条：表情 + 图片 */
+.compose-tools { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; position: relative; }
+.compose-tool {
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.1s;
+}
+.compose-tool:hover { border-color: var(--primary); }
+.compose-tool:active { transform: scale(0.92); }
+.emoji-panel {
+  position: absolute;
+  top: 40px;
+  left: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
+  width: 300px;
+  max-width: calc(100vw - 60px);
+  padding: 8px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+/* display:grid 会覆盖 [hidden] 的默认 display:none，须显式恢复，否则表情面板默认就展开 */
+.emoji-panel[hidden] { display: none; }
+.emoji-item {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  padding: 5px;
+  border-radius: 8px;
+}
+.emoji-item:hover { background: var(--card-glass); }
+.compose-images { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.compose-images:empty { display: none; }
+.compose-image { position: relative; width: 72px; height: 72px; }
+.compose-image img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); }
+.compose-image-del {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 13px;
+  line-height: 20px;
+  cursor: pointer;
+  padding: 0;
+}
+/* 正文/回复内由 markdown 渲染出的图片 */
+.thought-content img, .reply-text img { max-width: 100%; border-radius: 10px; margin-top: 8px; display: block; }
 
 /* 卡片内回复区：列表 + 一层楼中楼缩进 */
 .thought-replies { border-top: 1px dashed var(--border); margin-top: 12px; padding-top: 12px; }

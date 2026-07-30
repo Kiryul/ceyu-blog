@@ -277,21 +277,57 @@
       } catch (e) { return null; }
     }
     function clearAuthUser() { try { localStorage.removeItem('WALINE_USER'); } catch (e) {} }
+    // 认证状态广播：登录/退出后通知所有登录入口（发随想区 + 各已展开回复框）统一重渲染，
+    // 避免"在一处登录，另一处仍显示登录/注册"的状态残留。
+    var authSubs = [];
+    function onAuthChange(fn) { authSubs.push(fn); }
+    function fireAuthChange() { authSubs.slice().forEach(function (f) { try { f(); } catch (e) {} }); }
+    // 登录弹窗：严格对齐 Waline 官方客户端契约——打开 /ui/login，向弹窗发送
+    // {type:'TOKEN'} 握手，监听登录页回传的 {type:'userInfo', data:{token,...}}。
+    // 轮询检测弹窗被关闭以清理监听，避免未完成登录时残留。
     function walineLogin() {
-      return new Promise(function (resolve) {
-        var w = 450;
-        var h = 700;
-        var left = Math.max(0, (window.screen.width - w) / 2);
-        var top = Math.max(0, (window.screen.height - h) / 2);
-        window.open(SERVER + '/ui/login?lng=zh-CN', '_blank', 'width=' + w + ',height=' + h + ',left=' + left + ',top=' + top);
+      return new Promise(function (resolve, reject) {
+        var w = 1024;
+        var h = 600;
+        var left = Math.max(0, (window.innerWidth - w) / 2 + (window.screenX || 0));
+        var top = Math.max(0, (window.innerHeight - h) / 2 + (window.screenY || 0));
+        var popup = window.open(
+          SERVER + '/ui/login?lng=zh-CN',
+          '_blank',
+          'width=' + w + ',height=' + h + ',left=' + left + ',top=' + top +
+          ',scrollbars=no,resizable=no,status=no,location=no,toolbar=no,menubar=no'
+        );
+        if (!popup) { showToast('登录窗口被拦截，请允许弹窗后重试'); reject(new Error('popup blocked')); return; }
+        // 握手：告知登录页通过 postMessage 回传（已登录时会立即回传）
+        try { popup.postMessage({ type: 'TOKEN', data: null }, '*'); } catch (e) {}
+        var timer = null;
+        var done = false;
+        var cleanup = function () {
+          window.removeEventListener('message', recv);
+          if (timer) { clearInterval(timer); timer = null; }
+        };
         var recv = function (e) {
           var d = e.data;
-          if (!d || typeof d !== 'object' || d.type !== 'profile' || !d.data) return;
-          window.removeEventListener('message', recv);
+          if (!d || typeof d !== 'object' || d.type !== 'userInfo' || !d.data || !d.data.token) return;
+          done = true;
+          cleanup();
+          try { popup.close(); } catch (e2) {}
           try { localStorage.setItem('WALINE_USER', JSON.stringify(d.data)); } catch (err) {}
+          fireAuthChange();
           resolve(d.data);
         };
         window.addEventListener('message', recv);
+        // 检测弹窗关闭：登录页在关闭前会先 postMessage 回传用户信息，二者存在派发顺序竞争，
+        // 若立即判定取消会误删监听、吞掉登录回调。故关闭后留出宽限期，等消息派发完再判取消。
+        timer = setInterval(function () {
+          if (!popup.closed) return;
+          clearInterval(timer); timer = null;
+          setTimeout(function () {
+            if (done) return;
+            cleanup();
+            reject(new Error('login cancelled'));
+          }, 400);
+        }, 500);
       });
     }
     // 服务端对无效 token 不报错而是静默降级为匿名发布（实测），提交前必须显式校验
@@ -366,7 +402,7 @@
       var user = getAuthUser();
       if (user) {
         return '<form class="reply-form">' +
-          '<textarea name="comment" placeholder="友善回复～" maxlength="500" rows="2" required></textarea>' +
+          '<textarea name="comment" placeholder="友善回复～" maxlength="500" rows="2"></textarea>' +
           '<div class="compose-foot"><span class="compose-hint">以 <b>' + esc(user.display_name || '') + '</b> 回复</span>' +
           '<button type="submit" class="pager-btn compose-submit">回复</button></div>' +
         '</form>';
@@ -374,7 +410,7 @@
       return '<div class="reply-login"><span class="compose-hint">登录后即可回复～</span>' +
         '<button type="button" class="pager-btn reply-login-btn">登录 / 注册</button></div>';
     }
-    // 挂载回复表单：按登录态渲染表单/登录入口，登录或失效后自动重渲染
+    // 挂载回复表单：按登录态渲染表单/登录入口；订阅认证广播，登录或退出后自动重渲染
     function mountReply(box, buildPayload, onApproved) {
       var holder = document.createElement('div');
       holder.className = 'reply-compose';
@@ -382,23 +418,98 @@
       var render = function () {
         holder.innerHTML = replyFormHtml();
         if (getAuthUser()) {
-          bindForm(holder.querySelector('.reply-form'), buildPayload, onApproved, render);
+          bindForm(holder.querySelector('.reply-form'), buildPayload, onApproved);
         } else {
           holder.querySelector('.reply-login-btn').addEventListener('click', function () {
-            walineLogin().then(render);
+            walineLogin().catch(function () {});
           });
         }
       };
+      onAuthChange(render);
       render();
     }
 
+    /* --- 表情 + 图片工具条（发随想/回复共用） ---
+       表情：插入 Unicode 字符，随文本一起存储，自绘 UI 直接按文本渲染；
+       图片：沿用 Waline 官方默认策略——转 base64 内联（单张上限 128KB），
+       提交时以 markdown ![](dataURL) 拼进正文，服务端渲染为 <img>。 */
+    var EMOJI = ['😀', '😄', '😁', '😂', '🤣', '😊', '😍', '😘', '😜', '🤔', '😎', '😭', '😡', '👍', '👎', '👏', '🙏', '🎉', '💪', '🔥', '✨', '🌟', '💯', '❤️', '💔', '🥰', '😴', '🤯', '🥳', '😳', '🙈', '🐱', '🐶', '🍉', '🍺', '☕', '🌈', '⭐', '💤', '👀'];
+    function insertAtCursor(ta, str) {
+      var s = ta.selectionStart != null ? ta.selectionStart : ta.value.length;
+      var e = ta.selectionEnd != null ? ta.selectionEnd : ta.value.length;
+      ta.value = ta.value.slice(0, s) + str + ta.value.slice(e);
+      ta.selectionStart = ta.selectionEnd = s + str.length;
+      ta.focus();
+    }
+    function buildContent(text, imgs) {
+      var md = imgs.map(function (u) { return '![](' + u + ')'; }).join('\n');
+      if (text && md) return text + '\n\n' + md;
+      return text || md;
+    }
+    // 注入工具条（表情按钮 + 图片按钮 + 表情面板 + 缩略图预览），并把图片列表挂到 form._images
+    function mountToolbar(form) {
+      var ta = form.querySelector('textarea');
+      if (!ta || form._toolsMounted) return;
+      form._toolsMounted = true;
+      form._images = [];
+      var tools = document.createElement('div');
+      tools.className = 'compose-tools';
+      tools.innerHTML =
+        '<button type="button" class="compose-tool js-emoji" title="表情">😀</button>' +
+        '<button type="button" class="compose-tool js-image" title="图片">🖼️</button>' +
+        '<div class="emoji-panel" hidden>' +
+          EMOJI.map(function (em) { return '<button type="button" class="emoji-item">' + em + '</button>'; }).join('') +
+        '</div>';
+      var file = document.createElement('input');
+      file.type = 'file'; file.accept = 'image/*'; file.multiple = true; file.hidden = true;
+      var strip = document.createElement('div');
+      strip.className = 'compose-images';
+      ta.insertAdjacentElement('afterend', strip);
+      ta.insertAdjacentElement('afterend', tools);
+      tools.appendChild(file);
+      var panel = tools.querySelector('.emoji-panel');
+      var renderStrip = function () {
+        strip.innerHTML = form._images.map(function (u, i) {
+          return '<span class="compose-image"><img src="' + u + '" alt="">' +
+            '<button type="button" class="compose-image-del" data-i="' + i + '">×</button></span>';
+        }).join('');
+      };
+      form._resetTools = function () { form._images = []; renderStrip(); panel.hidden = true; };
+      tools.querySelector('.js-emoji').addEventListener('click', function () { panel.hidden = !panel.hidden; });
+      panel.addEventListener('click', function (e) {
+        var b = e.target.closest('.emoji-item');
+        if (!b) return;
+        insertAtCursor(ta, b.textContent);
+        panel.hidden = true;
+      });
+      tools.querySelector('.js-image').addEventListener('click', function () { file.click(); });
+      file.addEventListener('change', function () {
+        Array.prototype.forEach.call(file.files, function (f) {
+          if (!/^image\//.test(f.type)) return;
+          if (f.size > 128 * 1024) { showToast('图片过大，单张上限 128KB'); return; }
+          var reader = new FileReader();
+          reader.onload = function () { form._images.push(reader.result); renderStrip(); };
+          reader.onerror = function () { showToast('图片读取失败'); };
+          reader.readAsDataURL(f);
+        });
+        file.value = '';
+      });
+      strip.addEventListener('click', function (e) {
+        var del = e.target.closest('.compose-image-del');
+        if (!del) return;
+        form._images.splice(+del.dataset.i, 1);
+        renderStrip();
+      });
+    }
+
     /* --- 提交（发随想/回复共用）：一律以登录账号身份提交（Bearer token）；
-       提交前显式校验 token 有效性，失效则清登录态并触发 authLost 回调 --- */
-    function bindForm(form, buildPayload, onApproved, authLost) {
+       提交前显式校验 token 有效性，失效则清登录态并广播（各入口回退到登录） --- */
+    function bindForm(form, buildPayload, onApproved) {
       form.addEventListener('submit', function (e) {
         e.preventDefault();
         var text = form.comment.value.trim();
-        if (!text) return;
+        var imgs = form._images || [];
+        if (!text && !imgs.length) return;
         var btn = form.querySelector('.compose-submit');
         var label = btn.textContent;
         btn.disabled = true;
@@ -412,7 +523,7 @@
           fetch(API + '?lang=zh-CN', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-            body: JSON.stringify(buildPayload(text))
+            body: JSON.stringify(buildPayload(buildContent(text, imgs)))
           }).then(function (r) { return r.json(); }).then(function (res) {
             if (res.errno !== 0 || !res.data) {
               fail(res.errmsg === 'Comment too fast!' ? '发得太快了，歇一会儿再试～' : (res.errmsg || '提交失败，请稍后再试'));
@@ -421,6 +532,7 @@
             btn.disabled = false;
             btn.textContent = label;
             form.comment.value = '';
+            if (form._resetTools) form._resetTools();
             if (res.data.status === 'approved') {
               onApproved(res.data);
               showToast('发布成功！');
@@ -430,17 +542,18 @@
           }).catch(function () { fail('网络异常，提交失败'); });
         };
         var user = getAuthUser();
-        if (!user) { fail('请先登录'); if (authLost) authLost(); return; }
+        if (!user) { fail('请先登录'); fireAuthChange(); return; }
         verifyToken(user.token).then(function (ok) {
           if (!ok) {
             clearAuthUser();
-            if (authLost) authLost();
+            fireAuthChange();
             fail('登录已过期，请重新登录');
             return;
           }
           doPost(user.token);
         }).catch(function () { fail('网络异常，提交失败'); });
       });
+      mountToolbar(form);
     }
 
     /* --- 回复数徽标 --- */
@@ -554,12 +667,6 @@
     var composeLogin = document.getElementById('compose-login');
     var composePanel = document.getElementById('compose-panel');
     var composeUser = document.getElementById('compose-user');
-    // 登录失效兜底（bindForm auth 校验失败时回调）：收起表单、展示登录入口
-    function onAuthLost() {
-      if (!composePanel) return;
-      composePanel.hidden = true;
-      composeLogin.hidden = false;
-    }
     if (composeToggle && composeLogin && composePanel && composeUser) {
       var setUserChip = function () {
         var user = getAuthUser();
@@ -575,6 +682,17 @@
         composePanel.hidden = false;
         composePanel.comment.focus();
       };
+      // 认证广播回调：登录时若登录入口正展示则进入面板/否则仅刷新身份条；退出时面板回退到登录入口
+      var syncCompose = function () {
+        if (getAuthUser()) {
+          if (!composeLogin.hidden) openPanel();
+          else if (!composePanel.hidden) setUserChip();
+        } else if (!composePanel.hidden) {
+          composePanel.hidden = true;
+          composeLogin.hidden = false;
+        }
+      };
+      onAuthChange(syncCompose);
       composeToggle.addEventListener('click', function () {
         if (getAuthUser()) {
           composeLogin.hidden = true;
@@ -586,12 +704,12 @@
         }
       });
       document.getElementById('compose-login-btn').addEventListener('click', function () {
-        walineLogin().then(openPanel);
+        walineLogin().catch(function () {});
       });
       composeUser.addEventListener('click', function (e) {
         if (!e.target.closest('.compose-logout')) return;
         clearAuthUser();
-        onAuthLost();
+        fireAuthChange();
       });
       bindForm(composePanel, function (text) {
         return { comment: text, url: '/thoughts/', ua: navigator.userAgent };
@@ -600,7 +718,7 @@
         collect();
         show(1, false);
         composePanel.hidden = true;
-      }, onAuthLost);
+      });
     }
   }
 
