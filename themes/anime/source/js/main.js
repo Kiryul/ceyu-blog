@@ -65,7 +65,7 @@
     loadWaline().then(function (m) {
       if (walineInst && walineInst.destroy) { walineInst.destroy(); walineInst = null; }
       if (document.getElementById('waline')) {
-        walineInst = m.init({ el: '#waline', serverURL: CFG.walineServer, requiredMeta: ['nick', 'mail'], pageview: true, lang: 'zh-CN' });
+        walineInst = m.init({ el: '#waline', serverURL: CFG.walineServer, requiredMeta: ['nick', 'mail'], pageview: true, lang: 'zh-CN', dark: 'html[data-theme="dark"]' });
         var views = document.getElementById('post-views');
         if (views) views.hidden = false;
       } else {

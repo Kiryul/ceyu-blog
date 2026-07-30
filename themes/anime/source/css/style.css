@@ -16,6 +16,13 @@ html[data-theme='light'] {
   --card-bg: #ffffff;
   --code-bg: #f6f0f6;
   --panel-bg: rgba(255, 255, 255, 0.68);
+  /* 卡片五色循环色调（樱粉/晴蓝/藤紫/薄荷/杏橙），半透明透出壁纸 */
+  --card-glass: rgba(255, 255, 255, 0.72);
+  --tint-1: rgba(255, 238, 246, 0.72);
+  --tint-2: rgba(234, 244, 255, 0.72);
+  --tint-3: rgba(243, 238, 255, 0.72);
+  --tint-4: rgba(233, 249, 241, 0.72);
+  --tint-5: rgba(255, 244, 230, 0.72);
 }
 
 html[data-theme='dark'] {
@@ -32,6 +39,13 @@ html[data-theme='dark'] {
   --card-bg: #201e3c;
   --code-bg: #2a2748;
   --panel-bg: rgba(26, 24, 48, 0.68);
+  /* 暗色下的五色循环色调：同色相、低亮度、半透明，保证文字对比度 */
+  --card-glass: rgba(32, 30, 60, 0.72);
+  --tint-1: rgba(46, 32, 64, 0.72);
+  --tint-2: rgba(30, 37, 71, 0.72);
+  --tint-3: rgba(41, 33, 69, 0.72);
+  --tint-4: rgba(28, 47, 61, 0.72);
+  --tint-5: rgba(50, 38, 64, 0.72);
 }
 
 /* ---------- 基础 ---------- */
@@ -226,12 +240,26 @@ html[data-theme='dark'] .icon-sun { display: none; }
 .cards { display: flex; flex-direction: column; gap: 18px; }
 
 .post-card {
-  background: var(--card-bg);
+  background: var(--card-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: 18px;
   overflow: hidden;
   transition: transform 0.28s, box-shadow 0.28s;
 }
+
+/* 卡片五色循环着色：半透明底过渡到柔和色调，壁纸透出同时打破单调 */
+.post-card:nth-child(5n + 1),
+.thought-card:nth-child(5n + 1) { background: linear-gradient(135deg, var(--card-glass) 20%, var(--tint-1) 100%); }
+.post-card:nth-child(5n + 2),
+.thought-card:nth-child(5n + 2) { background: linear-gradient(135deg, var(--card-glass) 20%, var(--tint-2) 100%); }
+.post-card:nth-child(5n + 3),
+.thought-card:nth-child(5n + 3) { background: linear-gradient(135deg, var(--card-glass) 20%, var(--tint-3) 100%); }
+.post-card:nth-child(5n + 4),
+.thought-card:nth-child(5n + 4) { background: linear-gradient(135deg, var(--card-glass) 20%, var(--tint-4) 100%); }
+.post-card:nth-child(5n),
+.thought-card:nth-child(5n) { background: linear-gradient(135deg, var(--card-glass) 20%, var(--tint-5) 100%); }
 .post-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); }
 .post-card-link { display: flex; }
 .post-card-cover { flex: 0 0 220px; max-height: 150px; overflow: hidden; }
@@ -371,6 +399,16 @@ a.tag-chip:hover { background: var(--primary); color: #fff; }
 
 /* ---------- 评论 ---------- */
 .comments { margin-top: 48px; }
+/* Waline 颜色变量对齐站点主题：主色跟随主题色，暗色下背景/文字用站点变量，避免字色与背景近似看不清 */
+#waline {
+  --waline-theme-color: var(--primary);
+  --waline-active-color: var(--accent);
+  --waline-bgcolor: var(--card-bg);
+  --waline-bgcolor-light: var(--bg-alt);
+  --waline-color: var(--text);
+  --waline-border-color: var(--border);
+  --waline-info-color: var(--text-soft);
+}
 .comments-placeholder {
   padding: 26px;
   border: 1px dashed var(--border);
@@ -438,7 +476,9 @@ a.tag-chip:hover { background: var(--primary); color: #fff; }
 .thoughts-waterfall { column-count: 2; column-gap: 18px; }
 .thought-card {
   break-inside: avoid;
-  background: var(--card-bg);
+  background: var(--card-glass);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--border);
   border-radius: 16px;
   padding: 18px 20px;
