@@ -13,6 +13,7 @@ html[data-theme='light'] {
   --border: #f0e4ee;
   --shadow: 0 8px 28px rgba(255, 126, 179, 0.14);
   --header-bg: rgba(255, 255, 255, 0.42);
+  --mobile-nav-bg: rgba(255, 255, 255, 0.85); /* 移动端下拉菜单底色，独立于顶栏透明度 */
   --card-bg: #ffffff;
   --code-bg: #f6f0f6;
   --panel-bg: rgba(255, 255, 255, 0.68);
@@ -36,6 +37,7 @@ html[data-theme='dark'] {
   --border: #2e2b4e;
   --shadow: 0 8px 28px rgba(0, 0, 0, 0.4);
   --header-bg: rgba(23, 22, 42, 0.42);
+  --mobile-nav-bg: rgba(23, 22, 42, 0.85); /* 移动端下拉菜单底色，独立于顶栏透明度 */
   --card-bg: #201e3c;
   --code-bg: #2a2748;
   --panel-bg: rgba(26, 24, 48, 0.68);
@@ -1022,7 +1024,7 @@ html[data-theme='dark'] .aplayer .aplayer-miniswitcher .aplayer-icon path {
     top: 64px; left: 0; right: 0;
     flex-direction: column;
     align-items: stretch;
-    background: var(--header-bg);
+    background: var(--mobile-nav-bg);
     backdrop-filter: blur(18px) saturate(1.5);
     -webkit-backdrop-filter: blur(18px) saturate(1.5);
     padding: 10px 20px 16px;
