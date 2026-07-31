@@ -59,5 +59,11 @@
   <script src="<%- url_for('/js/main.js') %>"></script>
   <script src="<%- url_for('/js/search.js') %>"></script>
   <script src="<%- url_for('/js/widgets.js') %>"></script>
+  <!-- Vercel Speed Insights（静态站接入方式，等价于 Next 的 <SpeedInsights /> 组件）；
+       脚本由 Vercel 部署环境注入，本地 hexo server 下 404 属正常 -->
+  <script>
+    window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
+  </script>
+  <script defer src="/_vercel/speed-insights/script.js"></script>
 </body>
 </html>
