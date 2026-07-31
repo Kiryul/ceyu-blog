@@ -430,10 +430,35 @@
     }
 
     /* --- 表情 + 图片工具条（发随想/回复共用） ---
-       表情：插入 Unicode 字符，随文本一起存储，自绘 UI 直接按文本渲染；
+       表情：与文章评论区 Waline 同一套预设（微博表情，CDN 图片）。面板按 info.json
+       渲染图片按钮，点击插入 :weibo_xxx: 短码，提交前替换为 <img class="wl-emoji">
+       ——与官方客户端提交逻辑一致（服务端 markdown-it 不认识图片表情短码，只透传 HTML）；
        图片：沿用 Waline 官方默认策略——转 base64 内联（单张上限 128KB），
        提交时以 markdown ![](dataURL) 拼进正文，服务端渲染为 <img>。 */
-    var EMOJI = ['😀', '😄', '😁', '😂', '🤣', '😊', '😍', '😘', '😜', '🤔', '😎', '😭', '😡', '👍', '👎', '👏', '🙏', '🎉', '💪', '🔥', '✨', '🌟', '💯', '❤️', '💔', '🥰', '😴', '🤯', '🥳', '😳', '🙈', '🐱', '🐶', '🍉', '🍺', '☕', '🌈', '⭐', '💤', '👀'];
+    var EMOJI_PRESET = 'https://unpkg.com/@waline/emojis@1.1.0/weibo'; // Waline 默认表情包，与评论区一致
+    var emojiData = null;
+    var emojiPromise = null;
+    function loadEmoji() {
+      if (!emojiPromise) {
+        emojiPromise = fetch(EMOJI_PRESET + '/info.json').then(function (r) { return r.json(); }).then(function (info) {
+          var map = {};
+          var items = (info.items || []).map(function (it) {
+            var name = (info.prefix || '') + it;
+            map[name] = EMOJI_PRESET + '/' + name + (info.type ? '.' + info.type : '');
+            return name;
+          });
+          emojiData = { map: map, items: items };
+          return emojiData;
+        });
+      }
+      return emojiPromise;
+    }
+    function renderEmojiShortcodes(text) {
+      if (!emojiData) return text;
+      return text.replace(/:(.+?):/g, function (m, name) {
+        return emojiData.map[name] ? '<img class="wl-emoji" src="' + emojiData.map[name] + '" alt="' + name + '">' : m;
+      });
+    }
     function insertAtCursor(ta, str) {
       var s = ta.selectionStart != null ? ta.selectionStart : ta.value.length;
       var e = ta.selectionEnd != null ? ta.selectionEnd : ta.value.length;
@@ -443,8 +468,9 @@
     }
     function buildContent(text, imgs) {
       var md = imgs.map(function (u) { return '![](' + u + ')'; }).join('\n');
-      if (text && md) return text + '\n\n' + md;
-      return text || md;
+      var body = renderEmojiShortcodes(text); // 提交前把表情短码转 <img>，与官方客户端一致
+      if (body && md) return body + '\n\n' + md;
+      return body || md;
     }
     // 注入工具条（表情按钮 + 图片按钮 + 表情面板 + 缩略图预览），并把图片列表挂到 form._images
     function mountToolbar(form) {
@@ -457,9 +483,7 @@
       tools.innerHTML =
         '<button type="button" class="compose-tool js-emoji" title="表情">😀</button>' +
         '<button type="button" class="compose-tool js-image" title="图片">🖼️</button>' +
-        '<div class="emoji-panel" hidden>' +
-          EMOJI.map(function (em) { return '<button type="button" class="emoji-item">' + em + '</button>'; }).join('') +
-        '</div>';
+        '<div class="emoji-panel" hidden></div>';
       var file = document.createElement('input');
       file.type = 'file'; file.accept = 'image/*'; file.multiple = true; file.hidden = true;
       var strip = document.createElement('div');
@@ -475,13 +499,31 @@
         }).join('');
       };
       form._resetTools = function () { form._images = []; renderStrip(); panel.hidden = true; };
-      tools.querySelector('.js-emoji').addEventListener('click', function () { panel.hidden = !panel.hidden; });
+      // 表情面板首开时才拉取表情包清单（与评论区共用同一 CDN 预设）
+      var fillPanel = function (data) {
+        if (panel.dataset.ready) return;
+        panel.dataset.ready = '1';
+        panel.innerHTML = data.items.map(function (name) {
+          return '<button type="button" class="emoji-item" data-name="' + name + '" title="' + name + '">' +
+            '<img src="' + data.map[name] + '" alt="' + name + '" loading="lazy"></button>';
+        }).join('');
+      };
+      tools.querySelector('.js-emoji').addEventListener('click', function () {
+        panel.hidden = !panel.hidden;
+        if (!panel.hidden) {
+          loadEmoji().then(fillPanel).catch(function () {
+            panel.hidden = true;
+            showToast('表情加载失败，请稍后再试');
+          });
+        }
+      });
       panel.addEventListener('click', function (e) {
         var b = e.target.closest('.emoji-item');
         if (!b) return;
-        insertAtCursor(ta, b.textContent);
-        panel.hidden = true;
+        insertAtCursor(ta, ':' + b.dataset.name + ':');
+        // 不收起面板，支持连续选择多个表情；再点表情按钮或点发布才关闭
       });
+      form.addEventListener('submit', function () { panel.hidden = true; });
       tools.querySelector('.js-image').addEventListener('click', function () { file.click(); });
       file.addEventListener('change', function () {
         Array.prototype.forEach.call(file.files, function (f) {

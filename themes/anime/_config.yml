@@ -51,7 +51,7 @@ music:
   meting:
     server: tencent
     type: playlist
-    id: '9755489371'   # QQ 音乐公开歌单 ID（y.qq.com 分享链接 /playlist/ 后的数字）
+    id: '9755654764'   # QQ 音乐公开歌单 ID（y.qq.com 分享链接 /playlist/ 后的数字）
   # 方式二：自维护歌曲列表（填写后优先于 meting，音频文件放 source/music/ 下）
   # songs:
   #   - name: 歌名
