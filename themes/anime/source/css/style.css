@@ -735,6 +735,8 @@ a.tag-chip:hover { background: var(--primary); color: #fff; }
   gap: 2px;
   width: 300px;
   max-width: calc(100vw - 60px);
+  max-height: 220px;
+  overflow-y: auto;
   padding: 8px;
   background: var(--card-bg);
   border: 1px solid var(--border);
@@ -752,6 +754,7 @@ a.tag-chip:hover { background: var(--primary); color: #fff; }
   padding: 5px;
   border-radius: 8px;
 }
+.emoji-item img { width: 22px; height: 22px; display: block; }
 .emoji-item:hover { background: var(--card-glass); }
 .compose-images { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
 .compose-images:empty { display: none; }
@@ -773,7 +776,9 @@ a.tag-chip:hover { background: var(--primary); color: #fff; }
   padding: 0;
 }
 /* 正文/回复内由 markdown 渲染出的图片 */
-.thought-content img, .reply-text img { max-width: 100%; border-radius: 10px; margin-top: 8px; display: block; }
+/* 正文图片规则须排除 wl-emoji（表情图需保持行内小尺寸，否则被撑成块级大图） */
+.thought-content img:not(.wl-emoji), .reply-text img:not(.wl-emoji) { max-width: 100%; border-radius: 10px; margin-top: 8px; display: block; }
+.thought-content .wl-emoji { height: 1.25em; vertical-align: -0.25em; }
 
 /* 卡片内回复区：列表 + 一层楼中楼缩进 */
 .thought-replies { border-top: 1px dashed var(--border); margin-top: 12px; padding-top: 12px; }
