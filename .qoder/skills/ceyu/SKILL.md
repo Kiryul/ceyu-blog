@@ -1,6 +1,6 @@
 ---
 name: ceyu
-description: 策屿博客一键发布工具。子命令 article 将 source/_posts/ 下的文章提交并推送到 GitHub 完成发布；子命令 idea 将一条随想插入 source/_data/thoughts.yml 后提交推送。当用户输入 /ceyu article <文件名> 或 /ceyu idea <内容>，或要求发布博客文章、发布随想时使用。
+description: 策屿博客一键发布工具。子命令 article 将 source/_posts/ 下的文章提交并推送到 GitHub 完成发布；
 ---
 
 # 策屿博客发布（ceyu）
@@ -11,8 +11,7 @@ description: 策屿博客一键发布工具。子命令 article 将 source/_post
 
 解析参数第一个词：
 - `article <文件名>` → 执行「发布文章」流程
-- `idea <内容>` → 执行「发布随想」流程（第一个词之后的全部文本作为随想内容）
-- 无参数或无法识别 → 向用户说明两种用法，不做任何修改
+- 无参数或无法识别 → 向用户说明用法，不做任何修改
 
 ## 发布文章（article）
 
@@ -26,23 +25,9 @@ description: 策屿博客一键发布工具。子命令 article 将 source/_post
    - 若正文没有 `<!-- more -->`：不阻断发布，仅在报告中提醒（影响首页摘要截断）。
 3. **提交推送**：按下方「统一发布流程」执行，commit message 为 `post: 发布文章《<title>》`。
 
-## 发布随想（idea）
 
-1. **构造新条目**：id 取 `t` + 当前时间紧凑格式 `tYYYYMMDDHHmmss`（如 t20260730163030，是该随想回复线程的唯一标识，发布后不可改）；date 取当前时间 `YYYY-MM-DD HH:mm:ss`；content 为用户输入原文。
-   - 若内容包含 `: `、`#`，或以 `-`、`[`、`{`、引号等 YAML 特殊字符开头，content 值用双引号包裹并把内部 `"` 转义为 `\"`；否则保持裸文本。
-2. **插入到列表最前**（thoughts.yml 按时间倒序，新的在最上面）：用 SearchReplace 在头部注释后的**第一个 `- id:` 条目之前**插入三行：
 
-   ```yaml
-   - id: t<当前时间紧凑格式>
-     content: <内容>
-     date: <当前时间>
-   ```
-
-   缩进严格对齐现有条目（`- id:` 顶格，`content:`、`date:` 前两个空格）。**禁止用 echo/Set-Content 等 shell 命令改写此文件**（会破坏 UTF-8 中文编码）。
-3. **验证**：Read 回读文件头部，确认新条目格式与旧条目一致、无缩进错位。
-4. **提交推送**：按「统一发布流程」执行，commit message 为 `thought: 新增随想`，只 `git add source/_data/thoughts.yml`。
-
-## 统一发布流程（两个子命令共用）
+## 统一发布流程
 
 前置检查：`git status -sb` 确认当前在 develop；若有**与本次发布无关**的未提交改动，只 add 本次目标文件，不要 `git add -A`。
 
